@@ -88,9 +88,16 @@
             <!-- Preview Section -->
             <div class="p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Preview</h2>
+                <!-- Crop Mode Controls (centered) -->
+                <div class="flex justify-center items-center gap-3 mb-4" id="cropModeControls">
+                    <button id="autoCropBtn" class="bg-primary text-white px-4 py-2 rounded">Auto Crop</button>
+                    <button id="manualCropBtn" class="bg-gray-300 text-gray-700 px-4 py-2 rounded">Manual Crop</button>
+                    <button id="confirmCropBtn" class="bg-green-500 text-white px-4 py-2 rounded disabled:opacity-50" disabled>Confirm Selection</button>
+                </div>
                 <div class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden" id="previewContainer">
                     <div class="relative mb-6" id="canvasContainer">
                         <canvas id="originalCanvas" class="mb-4"></canvas>
+                        <div id="selectionBox" class="absolute border-2 border-primary pointer-events-none"></div>
                         <div class="flex justify-center mb-6">
                             <div class="relative">
                                 <canvas id="croppedCanvas"></canvas>
@@ -183,9 +190,82 @@
         const printBtn = document.getElementById('printBtn');
         const resetBtn = document.getElementById('resetBtn');
 
+         // DOM Elements
+        const autoCropBtn = document.getElementById('autoCropBtn');
+        const manualCropBtn = document.getElementById('manualCropBtn');
+        const confirmCropBtn = document.getElementById('confirmCropBtn');
+        const selectionBox = document.getElementById('selectionBox');
+
+        // existing variables
+        let manualMode = false;
+        let isDragging = false;
+        let startX = 0, startY = 0, selX = 0, selY = 0, selW = 0, selH = 0;
+
+
         // Variables
         let currentPdf = null;
         let croppedImageData = null;
+
+        autoCropBtn.addEventListener('click', () => {
+            manualMode = false;
+            confirmCropBtn.disabled = true;
+            selectionBox.style.display = 'none';
+            autoCropBtn.classList.replace('bg-gray-300','bg-primary');
+            autoCropBtn.classList.replace('text-gray-700','text-white');
+            manualCropBtn.classList.replace('bg-primary','bg-gray-300');
+            manualCropBtn.classList.replace('text-white','text-gray-700');
+            // immediately re-crop automatically
+            cropAndProcessImage();
+        });
+
+        manualCropBtn.addEventListener('click', () => {
+            manualMode = true;
+            confirmCropBtn.disabled = true;
+            autoCropBtn.classList.replace('bg-primary','bg-gray-300');
+            autoCropBtn.classList.replace('text-white','text-gray-700');
+            manualCropBtn.classList.replace('bg-gray-300','bg-primary');
+            manualCropBtn.classList.replace('text-gray-700','text-white');
+            selectionBox.style.display = 'none';
+        });
+
+        confirmCropBtn.addEventListener('click', () => {
+            if (!manualMode) return;
+            cropWithSelection();
+            confirmCropBtn.disabled = true;
+            selectionBox.style.display = 'none';
+        });
+
+        originalCanvas.addEventListener('mousedown', e => {
+            if (!manualMode) return;
+            isDragging = true;
+            const rect = originalCanvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+            selectionBox.style.left = `${startX}px`;
+            selectionBox.style.top = `${startY}px`;
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+            selectionBox.style.display = 'block';
+        });
+        originalCanvas.addEventListener('mousemove', e => {
+            if (!manualMode || !isDragging) return;
+            const rect = originalCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            selX = Math.min(x, startX);
+            selY = Math.min(y, startY);
+            selW = Math.abs(x - startX);
+            selH = Math.abs(y - startY);
+            selectionBox.style.left = `${selX}px`;
+            selectionBox.style.top = `${selY}px`;
+            selectionBox.style.width = `${selW}px`;
+            selectionBox.style.height = `${selH}px`;
+        });
+        originalCanvas.addEventListener('mouseup', () => {
+            if (!manualMode) return;
+            isDragging = false;
+            if (selW > 10 && selH > 10) confirmCropBtn.disabled = false;
+        });
 
         // Event Listeners
         browseBtn.addEventListener('click', () => fileInput.click());
@@ -322,7 +402,7 @@
         // Crop and process image
         function cropAndProcessImage() {
             const ctx = originalCanvas.getContext('2d');
-            const imgData = ctx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+            const imgData = ctx.getImageData(0,0,originalCanvas.width, originalCanvas.height);
             
             // Calculate crop dimensions (top 50%)
             const cropHeight = Math.floor(originalCanvas.height / 2);
@@ -374,6 +454,35 @@
             
             // Store the final image data
             croppedImageData = outputCanvas.toDataURL('image/png', 1.0); // Highest quality
+        }
+
+        function cropWithSelection() {
+            const ctx = originalCanvas.getContext('2d');
+            const scale = originalCanvas.width / parseFloat(originalCanvas.style.width);
+            const sx = selX * scale;
+            const sy = selY * scale;
+            const sw = selW * scale;
+            const sh = selH * scale;
+            const imgData = ctx.getImageData(sx, sy, sw, sh);
+            croppedCanvas.width = sw;
+            croppedCanvas.height = sh;
+            croppedCanvas.style.width = `${selW}px`;
+            croppedCanvas.style.height = `${selH}px`;
+            croppedCanvas.getContext('2d').putImageData(imgData, 0, 0);
+            // then draw onto US Letter output as in cropAndProcessImage pipeline
+            const usLetterWidth = 2550, usLetterHeight = 3300;
+            const outputCanvas = document.createElement('canvas');
+            outputCanvas.width = usLetterWidth;
+            outputCanvas.height = usLetterHeight;
+            const outputCtx = outputCanvas.getContext('2d');
+            outputCtx.fillStyle = '#ffffff';
+            outputCtx.fillRect(0,0,usLetterWidth,usLetterHeight);
+            const maxLabelHeight = usLetterHeight;
+            const rscale = Math.min(usLetterWidth/sw, usLetterHeight/sh);
+            const dx = (usLetterWidth - sw*rscale)/2;
+            const dy = 0;
+            outputCtx.drawImage(croppedCanvas, 0,0,sw,sh, dx,dy, sw*rscale, sh*rscale);
+            croppedImageData = outputCanvas.toDataURL('image/png',1.0);
         }
 
         // Download cropped image
