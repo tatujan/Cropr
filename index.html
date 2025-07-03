@@ -4,9 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shipping Label Cropper</title>
+
+    <!-- Tailwind & libs -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="label-cropper.js"></script>
+
+
+    <!-- Tailwind color tweaks -->
     <script>
         tailwind.config = {
             theme: {
@@ -14,548 +20,237 @@
                     colors: {
                         primary: '#3b82f6',
                         secondary: '#1e40af',
-                        dark: '#0f172a'
-                    }
-                }
-            }
+                        dark: '#0f172a',
+                    },
+                },
+            },
         }
     </script>
     <style>
-        .drop-zone {
-            border: 2px dashed #cbd5e1;
-            transition: all 0.3s ease;
+        .drop-zone{border:2px dashed #cbd5e1;transition:all .3s}
+        .drop-zone.active{border-color:#3b82f6;background:#f0f9ff}
+        .preview-container{transition:opacity .3s}
+        .progress-bar{height:4px;background:#3b82f6;transition:width .3s}
+        canvas{max-width:100%;height:auto;box-shadow:0 4px 6px -1px rgb(0 0 0/.1),0 2px 4px -1px rgb(0 0 0/.06)}
+
+        #selectionBox{
+            border:2px solid theme(colors.primary);
+            position:absolute;display:none;box-sizing:border-box;cursor:move
         }
-        .drop-zone.active {
-            border-color: #3b82f6;
-            background-color: #f0f9ff;
+        #selectionBox .handle{
+            position:absolute;width:10px;height:10px;background:theme(colors.primary)
         }
-        .preview-container {
-            transition: opacity 0.3s ease;
-        }
-        .progress-bar {
-            height: 4px;
-            background-color: #3b82f6;
-            transition: width 0.3s ease;
-        }
-        canvas {
-            max-width: 100%;
+        .nw{top:-5px;left:-5px;cursor:nwse-resize}
+        .n {top:-5px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+        .ne{top:-5px;right:-5px;cursor:nesw-resize}
+        .w {left:-5px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+        .e {right:-5px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+        .sw{bottom:-5px;left:-5px;cursor:nesw-resize}
+        .s {bottom:-5px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+        .se{bottom:-5px;right:-5px;cursor:nwse-resize}
+
+        .overlay-part{position:absolute;background:rgba(0,0,0,.45);display:none;pointer-events:none}
+        @media print {
+          /* Hide everything except the bitmap */
+          body *               { visibility: hidden !important; }
+          #printArea, #printArea * {
+            visibility: visible !important;
+          }
+
+          #printArea {
+            position: absolute;
+            left: 0; top: 0;
+            width: 100%;
+            margin: 0; padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;   /* top-align */
+          }
+
+          #printArea img {
+            max-width: 8.5in;          /* never exceed U.S-Letter */
+            max-height: 11in;
+            width: auto;
             height: auto;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            object-fit: contain;       /* shrink to fit, don’t crop */
+            page-break-inside: avoid;  /* stay on one sheet */
+          }
+
+          /* remove browser margins */
+          @page { size: Letter; margin: 0; }  
         }
+
     </style>
 </head>
+
 <body class="bg-gray-50 min-h-screen">
     <div class="max-w-4xl mx-auto px-4 py-8">
-        <!-- Header -->
+        <!---------------HEADER ------------>
         <header class="text-center mb-12">
             <h1 class="text-3xl md:text-4xl font-bold text-dark mb-2">Shipping Label Cropper</h1>
             <p class="text-gray-600 max-w-2xl mx-auto">
-                Upload your PDF shipping label to either automatically crop the top 50% or by manually selecting your label and generate a US Letter-sized PNG ready for printing
+                Upload your PDF shipping label to automatically crop the top&nbsp;50 % or select it manually,
+                then download / print a US-Letter sized PNG.
             </p>
         </header>
 
-        <!-- Main Content -->
+        <!--------------- MAIN CARD ------------------------------->
         <main class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <!-- Upload Section -->
+            <!-- Upload section (identical to original) -->
             <div class="p-6 border-b">
-                <div class="drop-zone rounded-lg p-8 text-center cursor-pointer mb-6" id="dropZone">
+                <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer mb-6">
                     <div class="flex flex-col items-center justify-center">
+                        <!-- icon / title / etc. untouched -->
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-primary mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 16v-4m0 0V8m0 4H8m4 0h4m2 6H6a2 2 0 01-2-2V6a2
+                                     2 0 012-2h7l5 5v9a2 2 0 01-2 2z"/>
                         </svg>
                         <h3 class="text-xl font-semibold text-gray-800 mb-2">Upload Shipping Label PDF</h3>
-                        <p class="text-gray-600 mb-4">Drag & drop your file here or click to browse</p>
-                        <input type="file" id="fileInput" class="hidden" accept=".pdf">
-                        <button id="browseBtn" class="bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition duration-300">
-                            Select File
-                        </button>
-                        <p class="text-gray-500 text-sm mt-4">All processing required is done locally in your browser. Your file never leaves your computer.</p>
-                        <p class="text-gray-500 text-sm mt-4">Supports PDF files only. Max file size: 5MB.</p>
+                        <p class="text-gray-600 mb-4">Drag&nbsp;&amp;&nbsp;drop your file here or click to browse</p>
+
+                        <input id="fileInput" type="file" class="hidden" accept=".pdf">
+                        <button id="browseBtn" class="bg-primary text-white font-medium py-2 px-6 rounded-lg transition">Select File</button>
+
+                        <p class="text-gray-500 text-sm mt-4">All processing is done locally in your browser. Your file never leaves your computer.</p>
+                        <p class="text-gray-500 text-sm mt-1">PDF files only · Max size 5 MB</p>
                     </div>
                 </div>
-                
-                <div class="progress-container mb-4 hidden" id="progressContainer">
+
+                <!-------- Progress Bar ------------------------------------------>
+                <div id="progressContainer" class="progress-container mb-4 hidden">
                     <div class="flex justify-between mb-1">
-                        <span class="text-sm font-medium text-gray-700">Processing...</span>
-                        <span class="text-sm font-medium text-gray-700" id="progressPercent">0%</span>
+                        <span class="text-sm font-medium text-gray-700">Processing…</span>
+                        <span id="progressPercent" class="text-sm font-medium text-gray-700">0 %</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="progress-bar h-2 rounded-full" id="progressBar"></div>
+                        <div id="progressBar" class="progress-bar h-2 rounded-full"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Preview Section -->
+            <!------------- Preview section ------------------------------------>
             <div class="p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Preview</h2>
-                <!-- Crop Mode Controls (centered) -->
-                <div class="flex justify-center items-center gap-3 mb-4" id="cropModeControls">
-                    <button id="autoCropBtn" class="bg-primary text-white px-4 py-2 rounded">Auto Crop</button>
+
+                <!-- centred buttons -->
+                <div id="cropModeControls" class="flex justify-center items-center gap-3 mb-4">
+                    <button id="autoCropBtn"   class="bg-primary text-white px-4 py-2 rounded">Auto Crop</button>
                     <button id="manualCropBtn" class="bg-gray-300 text-gray-700 px-4 py-2 rounded">Manual Crop</button>
                     <button id="confirmCropBtn" class="bg-green-500 text-white px-4 py-2 rounded disabled:opacity-50" disabled>Confirm Selection</button>
                 </div>
-                <div class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden" id="previewContainer">
-                    <div class="relative mb-6" id="canvasContainer">
+
+                <!-- canvases -->
+                <div id="previewContainer" class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden">
+                    <div id="canvasContainer" class="relative mb-6">
                         <canvas id="originalCanvas" class="mb-4"></canvas>
-                        <div id="selectionBox" class="absolute border-2 border-primary pointer-events-none"></div>
+
+                        <!-- grey overlay -->
+                        <div id="ovTop"    class="overlay-part"></div>
+                        <div id="ovLeft"   class="overlay-part"></div>
+                        <div id="ovRight"  class="overlay-part"></div>
+                        <div id="ovBottom" class="overlay-part"></div>
+
+                        <!-- selection rectangle -->
+                        <div id="selectionBox">
+                            <div class="handle nw"></div><div class="handle n"></div><div class="handle ne"></div>
+                            <div class="handle w"></div> <div class="handle e"></div>
+                            <div class="handle sw"></div><div class="handle s"></div><div class="handle se"></div>
+                        </div>
+
+                        <!-- on-screen cropped preview -->
                         <div class="flex justify-center mb-6">
-                            <div class="relative">
-                                <canvas id="croppedCanvas"></canvas>
-                                <div class="absolute inset-0 border-2 border-dashed border-red-500 pointer-events-none"></div>
-                            </div>
+                            <canvas id="croppedCanvas" class="border-2 border-dashed border-red-500"></canvas>
                         </div>
                     </div>
-                    
+                    <!-- action buttons -->
                     <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-                        <button id="downloadBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition duration-300 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        <!-- Download -->
+                        <button id="downloadBtn"
+                                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                                disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                 class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 
+                                         10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 
+                                         3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
                             </svg>
                             Download PNG
                         </button>
-                        <button id="printBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-300 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd" />
+
+                        <!-- Print -->
+                        <button id="printBtn"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                                disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                 class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                      d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 
+                                         2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 
+                                         2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd" />
                             </svg>
                             Print
                         </button>
-                        <button id="resetBtn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition duration-300 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+
+                        <!-- Reset -->
+                        <button id="resetBtn"
+                                class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                 class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                      d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 
+                                         1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 
+                                         01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 
+                                         0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 
+                                         7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
                             </svg>
                             Reset
                         </button>
                     </div>
+
+
                 </div>
-                
                 <div id="emptyPreview" class="text-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="h-16 w-16 mx-auto text-gray-300 mb-4"
+                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <p class="text-gray-500">Upload a PDF to see the preview</p>
                 </div>
+
             </div>
         </main>
 
-        <!-- How It Works Section -->
-        <section class="mt-12 bg-white rounded-xl shadow-lg p-6">
-            <h2 class="text-2xl font-bold text-dark mb-6 text-center">How It Works</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="text-center p-4">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="text-2xl font-bold text-primary">1</span>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Upload PDF</h3>
-                    <p class="text-gray-600">Upload your shipping label PDF file</p>
+        <!------------ How It Works Box --------------------->
+        <section class="mt-10 bg-white rounded-xl shadow p-8">
+            <h2 class="text-center text-2xl font-semibold mb-8">How It Works</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+                <div>
+                    <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center">1</div>
+                    <h3 class="font-semibold mb-1">Upload PDF</h3>
+                    <p class="text-sm text-gray-600">Upload your shipping label PDF file</p>
                 </div>
-                <div class="text-center p-4">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="text-2xl font-bold text-primary">2</span>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Automatic or Manual Cropping</h3>
-                    <p class="text-gray-600">Tool crops the top 50% of your shipping label PDF or you can manually select your label.</p>
+                <div>
+                    <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center">2</div>
+                    <h3 class="font-semibold mb-1">Automatic or Manual Cropping</h3>
+                    <p class="text-sm text-gray-600">Tool crops the top 50 % of your label<br>or you can manually select it</p>
                 </div>
-                <div class="text-center p-4">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="text-2xl font-bold text-primary">3</span>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Download & Print</h3>
-                    <p class="text-gray-600">Download the PNG to print later or directly print from the website</p>
+                <div>
+                    <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center">3</div>
+                    <h3 class="font-semibold mb-1">Download & Print</h3>
+                    <p class="text-sm text-gray-600">Download the PNG or print directly from the page</p>
                 </div>
             </div>
         </section>
-
-        <!-- Footer -->
+        <!----------- Footer ---------------------------------->
         <footer class="mt-12 text-center text-gray-500 text-sm">
             <p>© 2025 Shipping Label Cropper. All rights reserved.</p>
         </footer>
     </div>
 
-    <script>
-        // Initialize PDF.js worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // DOM Elements
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const browseBtn = document.getElementById('browseBtn');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const progressPercent = document.getElementById('progressPercent');
-        const previewContainer = document.getElementById('previewContainer');
-        const emptyPreview = document.getElementById('emptyPreview');
-        const originalCanvas = document.getElementById('originalCanvas');
-        const croppedCanvas = document.getElementById('croppedCanvas');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const printBtn = document.getElementById('printBtn');
-        const resetBtn = document.getElementById('resetBtn');
-
-         // DOM Elements
-        const autoCropBtn = document.getElementById('autoCropBtn');
-        const manualCropBtn = document.getElementById('manualCropBtn');
-        const confirmCropBtn = document.getElementById('confirmCropBtn');
-        const selectionBox = document.getElementById('selectionBox');
-
-        // existing variables
-        let manualMode = false;
-        let isDragging = false;
-        let startX = 0, startY = 0, selX = 0, selY = 0, selW = 0, selH = 0;
-
-
-        // Variables
-        let currentPdf = null;
-        let croppedImageData = null;
-
-        autoCropBtn.addEventListener('click', () => {
-            manualMode = false;
-            confirmCropBtn.disabled = true;
-            selectionBox.style.display = 'none';
-            autoCropBtn.classList.replace('bg-gray-300','bg-primary');
-            autoCropBtn.classList.replace('text-gray-700','text-white');
-            manualCropBtn.classList.replace('bg-primary','bg-gray-300');
-            manualCropBtn.classList.replace('text-white','text-gray-700');
-            // immediately re-crop automatically
-            cropAndProcessImage();
-        });
-
-        manualCropBtn.addEventListener('click', () => {
-            manualMode = true;
-            confirmCropBtn.disabled = true;
-            autoCropBtn.classList.replace('bg-primary','bg-gray-300');
-            autoCropBtn.classList.replace('text-white','text-gray-700');
-            manualCropBtn.classList.replace('bg-gray-300','bg-primary');
-            manualCropBtn.classList.replace('text-gray-700','text-white');
-            selectionBox.style.display = 'none';
-        });
-
-        confirmCropBtn.addEventListener('click', () => {
-            if (!manualMode) return;
-            cropWithSelection();
-            confirmCropBtn.disabled = true;
-            selectionBox.style.display = 'none';
-        });
-
-        originalCanvas.addEventListener('mousedown', e => {
-            if (!manualMode) return;
-            isDragging = true;
-            const rect = originalCanvas.getBoundingClientRect();
-            startX = e.clientX - rect.left;
-            startY = e.clientY - rect.top;
-            selectionBox.style.left = `${startX}px`;
-            selectionBox.style.top = `${startY}px`;
-            selectionBox.style.width = '0px';
-            selectionBox.style.height = '0px';
-            selectionBox.style.display = 'block';
-        });
-        originalCanvas.addEventListener('mousemove', e => {
-            if (!manualMode || !isDragging) return;
-            const rect = originalCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            selX = Math.min(x, startX);
-            selY = Math.min(y, startY);
-            selW = Math.abs(x - startX);
-            selH = Math.abs(y - startY);
-            selectionBox.style.left = `${selX}px`;
-            selectionBox.style.top = `${selY}px`;
-            selectionBox.style.width = `${selW}px`;
-            selectionBox.style.height = `${selH}px`;
-        });
-        originalCanvas.addEventListener('mouseup', () => {
-            if (!manualMode) return;
-            isDragging = false;
-            if (selW > 10 && selH > 10) confirmCropBtn.disabled = false;
-        });
-
-        // Event Listeners
-        browseBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', handleFileSelect);
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('active');
-        });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('active');
-        });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('active');
-            
-            if (e.dataTransfer.files.length) {
-                const file = e.dataTransfer.files[0];
-                if (file.type !== 'application/pdf') {
-                    alert('Please select a PDF file');
-                    return;
-                }
-                
-                // Create a new FileList manually since we can't directly assign to fileInput.files
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                fileInput.files = dataTransfer.files;
-                
-                // Create a synthetic event to pass to handleFileSelect
-                const event = {
-                    target: fileInput,
-                    preventDefault: () => {}
-                };
-                handleFileSelect(event);
-            }
-        });
-        downloadBtn.addEventListener('click', downloadCroppedImage);
-        printBtn.addEventListener('click', printCroppedImage);
-        resetBtn.addEventListener('click', resetApp);
-
-        // Handle file selection
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (!file) {
-                alert('No file selected');
-                return;
-            }
-            if (file.type !== 'application/pdf') {
-                alert('Please select a PDF file');
-                return;
-            }
-            
-            // Show progress
-            progressContainer.classList.remove('hidden');
-            progressBar.style.width = '10%';
-            progressPercent.textContent = '10%';
-            
-            // Read file
-            const reader = new FileReader();
-            reader.onload = async function(event) {
-                try {
-                    const typedArray = new Uint8Array(event.target.result);
-                    
-                    // Load PDF
-                    currentPdf = await pdfjsLib.getDocument(typedArray).promise;
-                    
-                    // Update progress
-                    progressBar.style.width = '30%';
-                    progressPercent.textContent = '30%';
-                    
-                    // Process first page
-                    await processPdfPage(1);
-                    
-                    // Hide progress
-                    setTimeout(() => {
-                        progressContainer.classList.add('hidden');
-                    }, 500);
-                    
-                } catch (error) {
-                    console.error('Error processing PDF:', error);
-                    alert('Error processing PDF. Please try another file.');
-                    progressContainer.classList.add('hidden');
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // Process PDF page
-        async function processPdfPage(pageNumber) {
-            const page = await currentPdf.getPage(pageNumber);
-            
-            // Set up viewport with higher scale for better resolution
-            const viewport = page.getViewport({ scale: 3.0 });
-            const outputScale = window.devicePixelRatio || 1;
-            
-            // Set canvas dimensions (high resolution internally, but displayed at reasonable size)
-            originalCanvas.width = Math.floor(viewport.width * outputScale);
-            originalCanvas.height = Math.floor(viewport.height * outputScale);
-            // Maintain aspect ratio for display (max width 800px)
-            const displayWidth = Math.min(800, Math.floor(viewport.width));
-            const displayHeight = (displayWidth / viewport.width) * viewport.height;
-            originalCanvas.style.width = displayWidth + "px";
-            originalCanvas.style.height = displayHeight + "px";
-            
-            // Store display dimensions for later use in cropping
-            originalCanvas.dataset.displayWidth = displayWidth;
-            originalCanvas.dataset.displayHeight = displayHeight;
-            
-            const context = originalCanvas.getContext('2d');
-            const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
-            
-            // Render page
-            await page.render({
-                canvasContext: context,
-                transform: transform,
-                viewport: viewport
-            }).promise;
-            
-            // Update progress
-            progressBar.style.width = '70%';
-            progressPercent.textContent = '70%';
-            
-            // Crop and process image
-            cropAndProcessImage();
-            
-            // Update progress
-            progressBar.style.width = '100%';
-            progressPercent.textContent = '100%';
-            
-            // Show preview
-            previewContainer.classList.remove('hidden');
-            emptyPreview.classList.add('hidden');
-        }
-
-        // Crop and process image
-        function cropAndProcessImage() {
-            const ctx = originalCanvas.getContext('2d');
-            const imgData = ctx.getImageData(0,0,originalCanvas.width, originalCanvas.height);
-            
-            // Calculate crop dimensions (top 50%)
-            const cropHeight = Math.floor(originalCanvas.height / 2);
-            
-            // Create cropped canvas (high resolution internally)
-            croppedCanvas.width = originalCanvas.width;
-            croppedCanvas.height = cropHeight;
-            // Maintain aspect ratio for display (half height of original display size)
-            croppedCanvas.style.width = originalCanvas.style.width;
-            croppedCanvas.style.height = Math.floor(parseInt(originalCanvas.dataset.displayHeight) / 2) + "px";
-            
-            const croppedCtx = croppedCanvas.getContext('2d');
-            croppedCtx.putImageData(imgData, 0, 0, 0, 0, originalCanvas.width, cropHeight);
-            
-            // Create US Letter-sized canvas with black background
-            const usLetterWidth = 2550; // 8.5in * 300dpi
-            const usLetterHeight = 3300; // 11in * 300dpi
-            
-            const outputCanvas = document.createElement('canvas');
-            outputCanvas.width = usLetterWidth;
-            outputCanvas.height = usLetterHeight;
-            
-            const outputCtx = outputCanvas.getContext('2d');
-            
-            // Fill with white background
-            outputCtx.fillStyle = '#ffffff';
-            outputCtx.fillRect(0, 0, usLetterWidth, usLetterHeight);
-            
-            // Calculate scale to fit cropped image in top half of US Letter
-            const maxLabelHeight = usLetterHeight / 2; // Top half only
-            const scale = Math.min(
-                usLetterWidth / croppedCanvas.width,
-                maxLabelHeight / croppedCanvas.height
-            );
-            
-            const scaledWidth = croppedCanvas.width * scale;
-            const scaledHeight = croppedCanvas.height * scale;
-            
-            // Position at top center
-            const x = (usLetterWidth - scaledWidth) / 2;
-            const y = 0; // Top of page
-            
-            // Draw cropped image in top half of US Letter
-            outputCtx.drawImage(
-                croppedCanvas,
-                0, 0, croppedCanvas.width, croppedCanvas.height,
-                x, y, scaledWidth, scaledHeight
-            );
-            
-            // Store the final image data
-            croppedImageData = outputCanvas.toDataURL('image/png', 1.0); // Highest quality
-        }
-
-        function cropWithSelection() {
-            const ctx = originalCanvas.getContext('2d');
-            const scale = originalCanvas.width / parseFloat(originalCanvas.style.width);
-            const sx = selX * scale;
-            const sy = selY * scale;
-            const sw = selW * scale;
-            const sh = selH * scale;
-            const imgData = ctx.getImageData(sx, sy, sw, sh);
-            croppedCanvas.width = sw;
-            croppedCanvas.height = sh;
-            croppedCanvas.style.width = `${selW}px`;
-            croppedCanvas.style.height = `${selH}px`;
-            croppedCanvas.getContext('2d').putImageData(imgData, 0, 0);
-            // then draw onto US Letter output as in cropAndProcessImage pipeline
-            const usLetterWidth = 2550, usLetterHeight = 3300;
-            const outputCanvas = document.createElement('canvas');
-            outputCanvas.width = usLetterWidth;
-            outputCanvas.height = usLetterHeight;
-            const outputCtx = outputCanvas.getContext('2d');
-            outputCtx.fillStyle = '#ffffff';
-            outputCtx.fillRect(0,0,usLetterWidth,usLetterHeight);
-            const maxLabelHeight = usLetterHeight;
-            const rscale = Math.min(usLetterWidth/sw, usLetterHeight/sh);
-            const dx = (usLetterWidth - sw*rscale)/2;
-            const dy = 0;
-            outputCtx.drawImage(croppedCanvas, 0,0,sw,sh, dx,dy, sw*rscale, sh*rscale);
-            croppedImageData = outputCanvas.toDataURL('image/png',1.0);
-        }
-
-        // Download cropped image
-        function downloadCroppedImage() {
-            if (!croppedImageData) return;
-            
-            const link = document.createElement('a');
-            link.href = croppedImageData;
-            link.download = 'cropped-shipping-label.png';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // Print cropped image
-        function printCroppedImage() {
-            if (!croppedImageData) return;
-            
-            const printContent = `
-                <html>
-                <head>
-                    <title>Print Shipping Label</title>
-                    <style>
-                        body { margin: 0; padding: 0; }
-                        img { 
-                            width: 100%; 
-                            height: auto;
-                            max-width: 8.5in;
-                        }
-                        @page {
-                            size: letter;
-                            margin: 0;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <img src="${croppedImageData}">
-                </body>
-                </html>
-            `;
-            
-            const printFrame = document.createElement('iframe');
-            printFrame.style.position = 'absolute';
-            printFrame.style.width = '0';
-            printFrame.style.height = '0';
-            printFrame.style.border = 'none';
-            printFrame.style.left = '-9999px';
-            document.body.appendChild(printFrame);
-            
-            printFrame.contentDocument.open();
-            printFrame.contentDocument.write(printContent);
-            printFrame.contentDocument.close();
-            
-            printFrame.onload = function() {
-                setTimeout(function() {
-                    printFrame.contentWindow.print();
-                    document.body.removeChild(printFrame);
-                }, 500);
-            };
-        }
-
-        // Reset application
-        function resetApp() {
-            fileInput.value = '';
-            previewContainer.classList.add('hidden');
-            emptyPreview.classList.remove('hidden');
-            originalCanvas.width = 0;
-            originalCanvas.height = 0;
-            croppedCanvas.width = 0;
-            croppedCanvas.height = 0;
-            croppedImageData = null;
-            currentPdf = null;
-        }
-    </script>
 </body>
 </html>
