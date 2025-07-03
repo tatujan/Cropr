@@ -3,7 +3,7 @@
 A tiny, client-side web app that lets you:
 
 * **Upload** any PDF shipping label  
-* **Auto-crop** the top 50 % &nbsp;— or draw a custom crop rectangle  
+* **Auto-crop** the top 50 % or draw a custom crop rectangle  
 * **Preview** the result at 300 dpi with a dashed cut-guide  
 * **Download** a US Letter-sized PNG for printable shiping labels
 * **Print** directly from the browser (single sheet, no headers/footers)
@@ -13,7 +13,7 @@ machine.
 
 ---
 
-## Demo
+## Screenshot
 
 ![screenshot](docs/screenshot.png)
 
