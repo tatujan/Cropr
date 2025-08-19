@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shipping Label Cropper</title>
+    <title>Cropr - PDF Label Cropper</title>
 
     <!-- Tailwind & libs -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,9 +18,10 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#3b82f6',
-                        secondary: '#1e40af',
-                        dark: '#0f172a',
+                        primary: '#10b981',      // emerald-500
+                        secondary: '#475569',    // slate-600  
+                        accent: '#f97316',       // orange-500
+                        dark: '#1e293b',         // slate-800
                     },
                 },
             },
@@ -28,9 +29,9 @@
     </script>
     <style>
         .drop-zone{border:2px dashed #cbd5e1;transition:all .3s}
-        .drop-zone.active{border-color:#3b82f6;background:#f0f9ff}
+        .drop-zone.active{border-color:#10b981;background:#f0fdf4}
         .preview-container{transition:opacity .3s}
-        .progress-bar{height:4px;background:#3b82f6;transition:width .3s}
+        .progress-bar{height:4px;background:#10b981;transition:width .3s}
         canvas{max-width:100%;height:auto;box-shadow:0 4px 6px -1px rgb(0 0 0/.1),0 2px 4px -1px rgb(0 0 0/.06)}
 
         #selectionBox{
@@ -83,19 +84,19 @@
     </style>
 </head>
 
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
     <div class="max-w-4xl mx-auto px-4 py-8">
         <!---------------HEADER ------------>
         <header class="text-center mb-12">
-            <h1 class="text-3xl md:text-4xl font-bold text-dark mb-2">Shipping Label Cropper</h1>
-            <p class="text-gray-600 max-w-2xl mx-auto">
-                Upload your PDF shipping label to automatically crop the top&nbsp;50 % or select it manually,
-                then download / print a US-Letter sized PNG.
+            <h1 class="text-4xl md:text-5xl font-bold text-dark mb-3">Cropr</h1>
+            <p class="text-gray-600 max-w-2xl mx-auto text-lg">
+                Crop PDF shipping labels instantly. Auto-crop the top half or select manually,
+                then download or print as US-Letter PNG.
             </p>
         </header>
 
         <!--------------- MAIN CARD ------------------------------->
-        <main class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <main class="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
             <!-- Upload section (identical to original) -->
             <div class="p-6 border-b">
                 <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer mb-6">
@@ -106,7 +107,7 @@
                                   d="M12 16v-4m0 0V8m0 4H8m4 0h4m2 6H6a2 2 0 01-2-2V6a2
                                      2 0 012-2h7l5 5v9a2 2 0 01-2 2z"/>
                         </svg>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Upload Shipping Label PDF</h3>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Upload PDF Label</h3>
                         <p class="text-gray-600 mb-4">Drag&nbsp;&amp;&nbsp;drop your file here or click to browse</p>
 
                         <input id="fileInput" type="file" class="hidden" accept=".pdf">
@@ -150,9 +151,9 @@
 
                 <!-- centred buttons -->
                 <div id="cropModeControls" class="flex justify-center items-center gap-3 mb-4">
-                    <button id="autoCropBtn"   class="bg-primary text-white px-4 py-2 rounded">Auto Crop</button>
-                    <button id="manualCropBtn" class="bg-gray-300 text-gray-700 px-4 py-2 rounded">Manual Crop</button>
-                    <button id="confirmCropBtn" class="bg-green-500 text-white px-4 py-2 rounded disabled:opacity-50" disabled>Confirm Selection</button>
+                    <button id="autoCropBtn"   class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition">Auto Crop</button>
+                    <button id="manualCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition">Manual Crop</button>
+                    <button id="confirmCropBtn" class="bg-accent hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50" disabled>Confirm Selection</button>
                 </div>
 
                 <!-- canvases -->
@@ -182,7 +183,7 @@
                     <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
                         <!-- Download -->
                         <button id="downloadBtn"
-                                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                                class="flex-1 bg-primary hover:bg-emerald-600 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
                                 disabled>
                             <svg xmlns="http://www.w3.org/2000/svg"
                                  class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -196,7 +197,7 @@
 
                         <!-- Print -->
                         <button id="printBtn"
-                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                                class="flex-1 bg-accent hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
                                 disabled>
                             <svg xmlns="http://www.w3.org/2000/svg"
                                  class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -210,7 +211,7 @@
 
                         <!-- Reset -->
                         <button id="resetBtn"
-                                class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap">
+                                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap">
                             <svg xmlns="http://www.w3.org/2000/svg"
                                  class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd"
@@ -240,29 +241,29 @@
         </main>
 
         <!------------ How It Works Box --------------------->
-        <section class="mt-10 bg-white rounded-xl shadow p-8">
-            <h2 class="text-center text-2xl font-semibold mb-8">How It Works</h2>
+        <section class="mt-10 bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+            <h2 class="text-center text-2xl font-semibold mb-8 text-dark">How Cropr Works</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
                 <div>
-                    <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center">1</div>
-                    <h3 class="font-semibold mb-1">Upload PDF</h3>
+                    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-lg">1</div>
+                    <h3 class="font-semibold mb-2 text-dark">Upload PDF</h3>
                     <p class="text-sm text-gray-600">Upload your shipping label PDF file</p>
                 </div>
                 <div>
-                    <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center">2</div>
-                    <h3 class="font-semibold mb-1">Automatic or Manual Cropping</h3>
-                    <p class="text-sm text-gray-600">Tool crops the top 50 % of your label<br>or you can manually select it</p>
+                    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-lg">2</div>
+                    <h3 class="font-semibold mb-2 text-dark">Crop Label</h3>
+                    <p class="text-sm text-gray-600">Auto-crop the top half or manually select the area you need</p>
                 </div>
                 <div>
-                    <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center">3</div>
-                    <h3 class="font-semibold mb-1">Download & Print</h3>
-                    <p class="text-sm text-gray-600">Download the PNG or print directly from the page</p>
+                    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-lg">3</div>
+                    <h3 class="font-semibold mb-2 text-dark">Download & Print</h3>
+                    <p class="text-sm text-gray-600">Get your cropped label as PNG or print directly</p>
                 </div>
             </div>
         </section>
         <!----------- Footer ---------------------------------->
         <footer class="mt-10 flex items-center justify-center gap-3 text-gray-400 text-sm">
-            <span>© 2025 Shipping Label Cropper. All rights reserved.</span>
+            <span>© 2025 Cropr. All rights reserved.</span>
 
             <!-- GitHub link -->
             <a href="https://github.com/tatujan/Cropr"
