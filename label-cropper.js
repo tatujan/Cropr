@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // preview
     pSection: $('previewContainer'), empty: $('emptyPreview'),
     oCan: $('originalCanvas'), cCan: $('croppedCanvas'),
+    // page navigation
+    pageControls: $('pageControls'), pageInfo: $('pageInfo'),
+    prevPage: $('prevPageBtn'), nextPage: $('nextPageBtn'),
     // buttons
     auto: $('autoCropBtn'), manual: $('manualCropBtn'), ok: $('confirmCropBtn'),
     dl: $('downloadBtn'),   pr: $('printBtn'),   reset: $('resetBtn'),
@@ -32,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const LETTER   = { w: 2550, h: 3300 };
   const PREVIEW  = 800; // on-screen width (CSS only)
   let pdfDoc     = null;
+  let currentPage = 1;
+  let totalPages  = 1;
   let manualMode = false;
   let pngDataURL = null;
   const sel = { x:0, y:0, w:0, h:0 }; // selection rectangle (CSS space)
@@ -57,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   /* -------------- 7.  COMPOSE CROPPED BITMAP ONTO US LETTER PNG ------------ */
-  function letterFrom(srcCanvas, sw, sh) {
+  function letterFrom(srcCanvas, sw, sh, isManualCrop = false) {
     const out = document.createElement('canvas');
     out.width  = LETTER.w;            // 2550 px
     out.height = LETTER.h;            // 3300 px
@@ -66,13 +71,42 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, out.width, out.height);
 
-    /* centre horizontally, stick to the very top vertically */
-    const scale = Math.min(out.width / sw, out.height / sh);
-    const dx    = (out.width - sw * scale) / 2;   // centre X
-    const dy    = 0;                              // TOP of page
-
-    ctx.drawImage(srcCanvas, 0, 0, sw, sh,
-                  dx, dy, sw * scale, sh * scale);
+    /* detect if label is vertical (taller than wide) */
+    const isVertical = sh > sw * 1.2;  // aspect ratio threshold
+    
+    /* enforce 50% page height limit - margins only for manual crop */
+    const margin = isManualCrop ? 60 : 0;  // 0.2 inch margin at 300 DPI for manual only
+    const maxHeight = LETTER.h / 2 - (margin * 2);   // 1650px (auto) or 1530px (manual)
+    const maxWidth = out.width - (margin * 2);       // 2550px (auto) or 2430px (manual)
+    let scale, scaledW, scaledH, dx, dy;
+    
+    if (isVertical) {
+      /* rotate 90 degrees clockwise for vertical labels */
+      scale = Math.min(maxWidth / sh, maxHeight / sw);
+      scaledW = sh * scale;  // rotated: height becomes width
+      scaledH = sw * scale;  // rotated: width becomes height
+      
+      /* center the rotated label within top 50% */
+      dx = (out.width - scaledW) / 2;
+      dy = margin + (maxHeight - scaledH) / 2;  // margin (0 for auto) + center within available height
+      
+      ctx.save();
+      ctx.translate(dx + scaledW/2, dy + scaledH/2);
+      ctx.rotate(Math.PI / 2);  // 90 degrees clockwise
+      ctx.drawImage(srcCanvas, -sw*scale/2, -sh*scale/2, sw*scale, sh*scale);
+      ctx.restore();
+    } else {
+      /* normal horizontal processing */
+      scale = Math.min(maxWidth / sw, maxHeight / sh);
+      scaledW = sw * scale;
+      scaledH = sh * scale;
+      
+      /* center within top 50% of page */
+      dx = (out.width - scaledW) / 2;
+      dy = margin + (maxHeight - scaledH) / 2;  // margin (0 for auto) + center within available height
+      
+      ctx.drawImage(srcCanvas, 0, 0, sw, sh, dx, dy, scaledW, scaledH);
+    }
 
     return out.toDataURL('image/png', /*quality*/ 1);
   }
@@ -94,8 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.cCan.height = cropH;
     dom.cCan.getContext('2d').putImageData(img, 0, 0);
 
-    // 3. compose onto US-Letter + store PNG
-    pngDataURL = letterFrom(dom.cCan, fullW, cropH);
+    // 3. compose onto US-Letter + store PNG (auto crop - no margins)
+    pngDataURL = letterFrom(dom.cCan, fullW, cropH, false);
     dom.dl.disabled = dom.pr.disabled = false;
   }
 
@@ -116,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.cCan.height = sh;
     dom.cCan.getContext('2d').putImageData(img, 0, 0);
 
-    pngDataURL = letterFrom(dom.cCan, sw, sh);
+    pngDataURL = letterFrom(dom.cCan, sw, sh, true);  // manual crop - with margins
     dom.dl.disabled = dom.pr.disabled = false;
   }
 
@@ -156,9 +190,31 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.pWrap.classList.remove('hidden'); setPct(0);
 
     pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-    const page  = await pdfDoc.getPage(1);
-    const view  = page.getViewport({ scale: DPI / 72 });
-    dom.oCan.width = view.width; dom.oCan.height = view.height;
+    totalPages = pdfDoc.numPages;
+    currentPage = 1;
+    
+    /* show page controls if multi-page */
+    if (totalPages > 1) {
+      dom.pageControls.classList.remove('hidden');
+      updatePageControls();
+    }
+    
+    await renderPage(currentPage);
+    
+    dom.pSection.classList.remove('hidden');
+    dom.empty.classList.add('hidden');
+    switchMode(false); // default = AUTO
+  }
+  
+  /* ---------------- 11.  RENDER SPECIFIC PAGE ---------------- */
+  async function renderPage(pageNum) {
+    if (!pdfDoc || pageNum < 1 || pageNum > totalPages) return;
+    
+    setPct(0);
+    const page = await pdfDoc.getPage(pageNum);
+    const view = page.getViewport({ scale: DPI / 72 });
+    dom.oCan.width = view.width; 
+    dom.oCan.height = view.height;
 
     const ctx = dom.oCan.getContext('2d');
     const task = page.render({ canvasContext: ctx, viewport: view });
@@ -170,13 +226,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const cssW = Math.min(view.width, PREVIEW);
     dom.oCan.style.width  = px(cssW);
     dom.oCan.style.height = px(cssW * view.height / view.width);
-
-    dom.pSection.classList.remove('hidden');
-    dom.empty.classList.add('hidden');
-    switchMode(false); // default = AUTO
+    
+    /* reset crop state */
+    dom.dl.disabled = dom.pr.disabled = true;
+    pngDataURL = null;
+    if (manualMode) {
+      switchMode(true); // refresh manual selection
+    } else {
+      cropAuto();
+    }
+  }
+  
+  /* ---------------- 12.  PAGE NAVIGATION ---------------- */
+  function updatePageControls() {
+    dom.pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    dom.prevPage.disabled = currentPage <= 1;
+    dom.nextPage.disabled = currentPage >= totalPages;
+  }
+  
+  async function switchToPage(pageNum) {
+    if (pageNum < 1 || pageNum > totalPages) return;
+    currentPage = pageNum;
+    updatePageControls();
+    await renderPage(currentPage);
   }
 
-  /* ---------------- 11.  PRINT --------------------------------------- */
+  /* ---------------- 13.  PRINT --------------------------------------- */
   function printPNG() {
     if (!pngDataURL) return;
     const iframe = document.createElement('iframe');
@@ -204,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </body></html>`;
   }
 
-  /* ---------------- 12.  DRAG & RESIZE ---------------- */
+  /* ---------------- 14.  DRAG & RESIZE ---------------- */
   /* drag */
   let dragging = false, dOX = 0, dOY = 0;
   dom.sel.addEventListener('mousedown', e => {
@@ -239,14 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('mouseup', () => { resizing = false; });
 
-  /* ---------------- 13.  UPLOAD / DRAG & DROP WIRING ---------------- */
+  /* ---------------- 15.  UPLOAD / DRAG & DROP WIRING ---------------- */
   dom.browse.addEventListener('click', () => dom.file.click());
   dom.file.addEventListener('change', e => loadFile(e.target.files[0]));
   ['dragenter','dragover'].forEach(ev => dom.drop.addEventListener(ev, e => { e.preventDefault(); dom.drop.classList.add('active'); }));
   ['dragleave','dragend','drop'].forEach(ev => dom.drop.addEventListener(ev, e => { e.preventDefault(); dom.drop.classList.remove('active'); }));
   dom.drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
 
-  /* ---------------- 14.  BUTTONS (mode / confirm / DL / print / reset) ---------------- */
+  /* ---------------- 16.  BUTTONS (mode / confirm / DL / print / reset / page nav) ---------------- */
   dom.auto  .addEventListener('click', () => switchMode(false));
   dom.manual.addEventListener('click', () => switchMode(true));
   dom.ok    .addEventListener('click', () => { if (manualMode) { cropManual(); dom.sel.style.display = 'none'; dom.ok.disabled = true; overlays.forEach(o => o.style.display='none'); } });
@@ -257,4 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   dom.pr.addEventListener('click', printPNG);
   dom.reset.addEventListener('click', () => location.reload());
+  
+  /* page navigation */
+  dom.prevPage.addEventListener('click', () => switchToPage(currentPage - 1));
+  dom.nextPage.addEventListener('click', () => switchToPage(currentPage + 1));
 });
