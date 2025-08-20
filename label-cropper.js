@@ -50,14 +50,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ---------------- 6.  OVERLAY HELPERS (MANUAL CROP) ---------------- */
   function syncOverlay() {
-    const c = dom.oCan.getBoundingClientRect(), s = dom.sel.getBoundingClientRect();
-    dom.ovT.style.cssText = `left:0;top:0;width:100%;height:${px(s.top-c.top)};display:block`;
-    dom.ovB.style.cssText = `left:0;top:${px(s.bottom-c.top)};width:100%;height:${px(c.bottom-s.bottom)};display:block`;
-    dom.ovL.style.cssText = `left:0;top:${px(s.top-c.top)};width:${px(s.left-c.left)};height:${px(s.height)};display:block`;
-    dom.ovR.style.cssText = `left:${px(s.right-c.left)};top:${px(s.top-c.top)};width:${px(c.right-s.right)};height:${px(s.height)};display:block`;
+    const canvasFrame = dom.oCan.parentElement; // the canvas-frame div
+    const frameRect = canvasFrame.getBoundingClientRect();
+    const canvasRect = dom.oCan.getBoundingClientRect();
+    
+    // Calculate selection position relative to frame
+    const canvasOffsetInFrame = { 
+      x: canvasRect.left - frameRect.left, 
+      y: canvasRect.top - frameRect.top 
+    };
+    
+    const selInFrame = {
+      left: sel.x + canvasOffsetInFrame.x,
+      top: sel.y + canvasOffsetInFrame.y,
+      right: sel.x + sel.w + canvasOffsetInFrame.x,
+      bottom: sel.y + sel.h + canvasOffsetInFrame.y
+    };
+    
+    dom.ovT.style.cssText = `left:0;top:0;width:100%;height:${px(selInFrame.top)};display:block`;
+    dom.ovB.style.cssText = `left:0;top:${px(selInFrame.bottom)};width:100%;height:${px(frameRect.height - selInFrame.bottom)};display:block`;
+    dom.ovL.style.cssText = `left:0;top:${px(selInFrame.top)};width:${px(selInFrame.left)};height:${px(sel.h)};display:block`;
+    dom.ovR.style.cssText = `left:${px(selInFrame.right)};top:${px(selInFrame.top)};width:${px(frameRect.width - selInFrame.right)};height:${px(sel.h)};display:block`;
   }
   const drawSel = () => {
-    dom.sel.style.cssText = `display:block;left:${px(sel.x)};top:${px(sel.y)};width:${px(sel.w)};height:${px(sel.h)}`;
+    const canvasFrame = dom.oCan.parentElement;
+    const frameRect = canvasFrame.getBoundingClientRect();
+    const canvasRect = dom.oCan.getBoundingClientRect();
+    
+    // Position selection box relative to frame, accounting for canvas position
+    const canvasOffsetInFrame = { 
+      x: canvasRect.left - frameRect.left, 
+      y: canvasRect.top - frameRect.top 
+    };
+    
+    const frameX = sel.x + canvasOffsetInFrame.x;
+    const frameY = sel.y + canvasOffsetInFrame.y;
+    
+    dom.sel.style.cssText = `display:block;left:${px(frameX)};top:${px(frameY)};width:${px(sel.w)};height:${px(sel.h)}`;
     syncOverlay();
   };
 
@@ -134,23 +163,38 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function cropManual() {
-    const scale = dom.oCan.width / parseFloat(dom.oCan.style.width);
+    // Scale factor from visual canvas to actual canvas pixels  
+    const canvasRect = dom.oCan.getBoundingClientRect();
+    const scale = dom.oCan.width / canvasRect.width;
 
-    // rectangle in source-canvas pixels
-    const sx = Math.round(sel.x * scale);
-    const sy = Math.round(sel.y * scale);
+    console.log('Debug cropManual (simplified):');
+    console.log('Selection (canvas-relative):', sel.x, sel.y, sel.w, sel.h);
+    console.log('Canvas visual size:', canvasRect.width, canvasRect.height);
+    console.log('Canvas actual size:', dom.oCan.width, dom.oCan.height);
+    console.log('Scale factor:', scale);
+
+    // Rectangle in source-canvas pixels (coordinates are already canvas-relative)
+    const sx = Math.max(0, Math.round(sel.x * scale));
+    const sy = Math.max(0, Math.round(sel.y * scale));
     const sw = Math.round(sel.w * scale);
     const sh = Math.round(sel.h * scale);
 
-    // guard-rail: make sure coords are inside the canvas
-    const srcCtx = dom.oCan.getContext('2d');
-    const img    = srcCtx.getImageData(sx, sy, sw, sh);
+    console.log('Final coords:', sx, sy, sw, sh);
 
-    dom.cCan.width  = sw;
-    dom.cCan.height = sh;
+    // Ensure coordinates are within canvas bounds
+    const finalSx = Math.min(sx, dom.oCan.width - sw);
+    const finalSy = Math.min(sy, dom.oCan.height - sh);
+    const finalSw = Math.min(sw, dom.oCan.width - finalSx);
+    const finalSh = Math.min(sh, dom.oCan.height - finalSy);
+
+    const srcCtx = dom.oCan.getContext('2d');
+    const img = srcCtx.getImageData(finalSx, finalSy, finalSw, finalSh);
+
+    dom.cCan.width = finalSw;
+    dom.cCan.height = finalSh;
     dom.cCan.getContext('2d').putImageData(img, 0, 0);
 
-    pngDataURL = letterFrom(dom.cCan, sw, sh, true);  // manual crop - with margins
+    pngDataURL = letterFrom(dom.cCan, finalSw, finalSh, true);  // manual crop - with margins
     dom.dl.disabled = dom.pr.disabled = false;
   }
 
@@ -166,8 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
       /* disable DL/Print until user confirms */
       dom.dl.disabled = dom.pr.disabled = true;
 
-      const cw = parseFloat(dom.oCan.style.width),
-            ch = parseFloat(dom.oCan.style.height);
+      const canvasRect = dom.oCan.getBoundingClientRect();
+      const cw = canvasRect.width;
+      const ch = canvasRect.height;
       sel.w = cw * 0.8;
       sel.h = ch * 0.4;
       sel.x = (cw - sel.w) / 2;
@@ -288,9 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('mousemove', e => {
     if (!dragging) return;
-    const r = dom.oCan.getBoundingClientRect();
-    sel.x = Math.min(Math.max(0, e.clientX - r.left - dOX), r.width  - sel.w);
-    sel.y = Math.min(Math.max(0, e.clientY - r.top  - dOY), r.height - sel.h);
+    const canvasRect = dom.oCan.getBoundingClientRect();
+    sel.x = Math.min(Math.max(0, e.clientX - canvasRect.left - dOX), canvasRect.width  - sel.w);
+    sel.y = Math.min(Math.max(0, e.clientY - canvasRect.top  - dOY), canvasRect.height - sel.h);
     drawSel();
   });
   window.addEventListener('mouseup', () => { dragging = false; });

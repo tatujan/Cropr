@@ -28,27 +28,83 @@
         }
     </script>
     <style>
-        .drop-zone{border:2px dashed #cbd5e1;transition:all .3s}
-        .drop-zone.active{border-color:#10b981;background:#f0fdf4}
+        /* Enhanced animations and hover states */
+        .btn-hover {
+            transform: translateY(0);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-hover:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+        }
+        .btn-hover:active:not(:disabled) {
+            transform: translateY(0);
+            transition: all 0.1s;
+        }
+        
+        /* File upload zone */
+        .drop-zone{border:2px dashed #cbd5e1;transition:all .3s ease;border-radius:12px}
+        .drop-zone.active{border-color:#10b981;background:#f0fdf4;transform:scale(1.02)}
+        .drop-zone:hover{border-color:#10b981;background:#f9fafb;transform:scale(1.01)}
+        
+        /* Other elements */
         .preview-container{transition:opacity .3s}
-        .progress-bar{height:4px;background:#10b981;transition:width .3s}
-        canvas{max-width:100%;height:auto;box-shadow:0 4px 6px -1px rgb(0 0 0/.1),0 2px 4px -1px rgb(0 0 0/.06)}
+        .progress-bar{
+            height:6px;
+            background:linear-gradient(90deg, #10b981, #34d399);
+            transition:width .4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius:3px;
+            box-shadow: 0 0 8px rgb(16 185 129 / 0.4);
+            position:relative;
+        }
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        canvas{
+            max-width:100%;
+            height:auto;
+            border-radius:8px;
+            box-shadow:0 10px 15px -3px rgb(0 0 0/.1), 0 4px 6px -2px rgb(0 0 0/.05);
+            border: 1px solid rgb(0 0 0 / 0.1);
+        }
+        .canvas-frame {
+            padding: 12px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-radius: 12px;
+            border: 1px solid rgb(0 0 0 / 0.08);
+            box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+        }
 
         #selectionBox{
-            border:2px solid theme(colors.primary);
-            position:absolute;display:none;box-sizing:border-box;cursor:move
+            border:2px dashed #10b981;
+            position:absolute;display:none;box-sizing:border-box;cursor:move;
+            background: rgba(16, 185, 129, 0.1);
         }
         #selectionBox .handle{
-            position:absolute;width:10px;height:10px;background:theme(colors.primary)
+            position:absolute;width:12px;height:12px;background:#10b981;
+            border: 1px solid white;border-radius:2px;
+            cursor:pointer;
+            z-index:10;
         }
-        .nw{top:-5px;left:-5px;cursor:nwse-resize}
-        .n {top:-5px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-        .ne{top:-5px;right:-5px;cursor:nesw-resize}
-        .w {left:-5px;top:50%;transform:translateY(-50%);cursor:ew-resize}
-        .e {right:-5px;top:50%;transform:translateY(-50%);cursor:ew-resize}
-        .sw{bottom:-5px;left:-5px;cursor:nesw-resize}
-        .s {bottom:-5px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-        .se{bottom:-5px;right:-5px;cursor:nwse-resize}
+        .nw{top:-6px;left:-6px;cursor:nwse-resize}
+        .n {top:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+        .ne{top:-6px;right:-6px;cursor:nesw-resize}
+        .w {left:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+        .e {right:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+        .sw{bottom:-6px;left:-6px;cursor:nesw-resize}
+        .s {bottom:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+        .se{bottom:-6px;right:-6px;cursor:nwse-resize}
 
         .overlay-part{position:absolute;background:rgba(0,0,0,.45);display:none;pointer-events:none}
         @media print {
@@ -96,7 +152,7 @@
         </header>
 
         <!--------------- MAIN CARD ------------------------------->
-        <main class="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <main class="bg-gradient-to-b from-white to-gray-50/30 rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden" style="box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.05);">
             <!-- Upload section (identical to original) -->
             <div class="p-6 border-b">
                 <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer mb-6">
@@ -111,7 +167,7 @@
                         <p class="text-gray-600 mb-4">Drag&nbsp;&amp;&nbsp;drop your file here or click to browse</p>
 
                         <input id="fileInput" type="file" class="hidden" accept=".pdf">
-                        <button id="browseBtn" class="bg-primary text-white font-medium py-2 px-6 rounded-lg transition">Select File</button>
+                        <button id="browseBtn" class="bg-primary text-white font-medium py-2 px-6 rounded-lg btn-hover">Select File</button>
 
                         <p class="text-gray-500 text-sm mt-4">All processing is done locally in your browser. Your file never leaves your computer.</p>
                         <p class="text-gray-500 text-sm mt-1">PDF files only · Max size 5 MB</p>
@@ -124,8 +180,8 @@
                         <span class="text-sm font-medium text-gray-700">Processing…</span>
                         <span id="progressPercent" class="text-sm font-medium text-gray-700">0 %</span>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div id="progressBar" class="progress-bar h-2 rounded-full"></div>
+                    <div class="w-full bg-gray-200 rounded-full h-2 shadow-inner">
+                        <div id="progressBar" class="progress-bar rounded-full"></div>
                     </div>
                 </div>
             </div>
@@ -136,13 +192,13 @@
 
                 <!-- page navigation -->
                 <div id="pageControls" class="flex justify-center items-center gap-3 mb-4 hidden">
-                    <button id="prevPageBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded disabled:opacity-50" disabled>
+                    <button id="prevPageBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded disabled:opacity-50 btn-hover" disabled>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </button>
                     <span id="pageInfo" class="text-gray-600 font-medium px-3">Page 1 of 1</span>
-                    <button id="nextPageBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded disabled:opacity-50" disabled>
+                    <button id="nextPageBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded disabled:opacity-50 btn-hover" disabled>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                         </svg>
@@ -151,15 +207,17 @@
 
                 <!-- centred buttons -->
                 <div id="cropModeControls" class="flex justify-center items-center gap-3 mb-4">
-                    <button id="autoCropBtn"   class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition">Auto Crop</button>
-                    <button id="manualCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition">Manual Crop</button>
-                    <button id="confirmCropBtn" class="bg-accent hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50" disabled>Confirm Selection</button>
+                    <button id="autoCropBtn"   class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg btn-hover">Auto Crop</button>
+                    <button id="manualCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg btn-hover">Manual Crop</button>
+                    <button id="confirmCropBtn" class="bg-accent hover:bg-orange-600 text-white px-4 py-2 rounded-lg btn-hover disabled:opacity-50" disabled>Confirm Selection</button>
                 </div>
 
                 <!-- canvases -->
                 <div id="previewContainer" class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden">
                     <div id="canvasContainer" class="relative mb-6">
-                        <canvas id="originalCanvas" class="mb-4"></canvas>
+                        <div class="canvas-frame">
+                            <canvas id="originalCanvas" class="mb-4"></canvas>
+                        </div>
 
                         <!-- grey overlay -->
                         <div id="ovTop"    class="overlay-part"></div>
@@ -176,14 +234,16 @@
 
                         <!-- on-screen cropped preview -->
                         <div class="flex justify-center mb-6">
-                            <canvas id="croppedCanvas" class="border-2 border-dashed border-red-500"></canvas>
+                            <div class="canvas-frame">
+                                <canvas id="croppedCanvas" class="border-2 border-dashed border-red-500"></canvas>
+                            </div>
                         </div>
                     </div>
                     <!-- action buttons -->
                     <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
                         <!-- Download -->
                         <button id="downloadBtn"
-                                class="flex-1 bg-primary hover:bg-emerald-600 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                                class="flex-1 bg-primary hover:bg-emerald-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
                                 disabled>
                             <svg xmlns="http://www.w3.org/2000/svg"
                                  class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -197,7 +257,7 @@
 
                         <!-- Print -->
                         <button id="printBtn"
-                                class="flex-1 bg-accent hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                                class="flex-1 bg-accent hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
                                 disabled>
                             <svg xmlns="http://www.w3.org/2000/svg"
                                  class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -211,7 +271,7 @@
 
                         <!-- Reset -->
                         <button id="resetBtn"
-                                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center whitespace-nowrap">
+                                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap">
                             <svg xmlns="http://www.w3.org/2000/svg"
                                  class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd"
