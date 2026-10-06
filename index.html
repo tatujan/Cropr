@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cropr - PDF Label Cropper</title>
+    <link rel="icon" href="data:,">
 
     <!-- Tailwind & libs -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="label-cropper.js"></script>
+    <script type="module" src="src/main.js"></script>
 
 
     <!-- Tailwind color tweaks -->
@@ -71,13 +71,6 @@
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
         }
-        canvas{
-            max-width:100%;
-            height:auto;
-            border-radius:8px;
-            box-shadow:0 10px 15px -3px rgb(0 0 0/.1), 0 4px 6px -2px rgb(0 0 0/.05);
-            border: 1px solid rgb(0 0 0 / 0.1);
-        }
         .canvas-frame {
             padding: 12px;
             background: linear-gradient(135deg, #f8fafc, #f1f5f9);
@@ -85,58 +78,32 @@
             border: 1px solid rgb(0 0 0 / 0.08);
             box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
         }
+        .canvas-frame canvas {
+            border-radius: 4px;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0/.1), 0 4px 6px -2px rgb(0 0 0/.05);
+        }
 
+        /* Crop stage: the page canvas fills it exactly, so percentages in it
+           are page fractions. The canvas must not have a border or padding. */
         #selectionBox{
-            border:2px dashed #10b981;
-            position:absolute;display:none;box-sizing:border-box;cursor:move;
-            background: rgba(16, 185, 129, 0.1);
+            position:absolute;box-sizing:border-box;cursor:move;touch-action:none;
+            outline:2px dashed #10b981;  /* outline: does not cover the crop area */
         }
         #selectionBox .handle{
-            position:absolute;width:12px;height:12px;background:#10b981;
+            position:absolute;width:14px;height:14px;background:#10b981;
             border: 1px solid white;border-radius:2px;
-            cursor:pointer;
             z-index:10;
         }
-        .nw{top:-6px;left:-6px;cursor:nwse-resize}
-        .n {top:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-        .ne{top:-6px;right:-6px;cursor:nesw-resize}
-        .w {left:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}
-        .e {right:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}
-        .sw{bottom:-6px;left:-6px;cursor:nesw-resize}
-        .s {bottom:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-        .se{bottom:-6px;right:-6px;cursor:nwse-resize}
+        .nw{top:-7px;left:-7px;cursor:nwse-resize}
+        .n {top:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+        .ne{top:-7px;right:-7px;cursor:nesw-resize}
+        .w {left:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+        .e {right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+        .sw{bottom:-7px;left:-7px;cursor:nesw-resize}
+        .s {bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+        .se{bottom:-7px;right:-7px;cursor:nwse-resize}
 
-        .overlay-part{position:absolute;background:rgba(0,0,0,.45);display:none;pointer-events:none}
-        @media print {
-          /* Hide everything except the bitmap */
-          body *               { visibility: hidden !important; }
-          #printArea, #printArea * {
-            visibility: visible !important;
-          }
-
-          #printArea {
-            position: absolute;
-            left: 0; top: 0;
-            width: 100%;
-            margin: 0; padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;   /* top-align */
-          }
-
-          #printArea img {
-            max-width: 8.5in;          /* never exceed U.S-Letter */
-            max-height: 11in;
-            width: auto;
-            height: auto;
-            object-fit: contain;       /* shrink to fit, don’t crop */
-            page-break-inside: avoid;  /* stay on one sheet */
-          }
-
-          /* remove browser margins */
-          @page { size: Letter; margin: 0; }  
-        }
-
+        .overlay-part{position:absolute;background:rgba(0,0,0,.45);pointer-events:none}
     </style>
 </head>
 
@@ -170,9 +137,11 @@
                         <button id="browseBtn" class="bg-primary text-white font-medium py-2 px-6 rounded-lg btn-hover">Select File</button>
 
                         <p class="text-gray-500 text-sm mt-4">All processing is done locally in your browser. Your file never leaves your computer.</p>
-                        <p class="text-gray-500 text-sm mt-1">PDF files only · Max size 5 MB</p>
+                        <p class="text-gray-500 text-sm mt-1">PDF files only</p>
                     </div>
                 </div>
+
+                <p id="errorMsg" role="alert" class="hidden mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm"></p>
 
                 <!-------- Progress Bar ------------------------------------------>
                 <div id="progressContainer" class="progress-container mb-4 hidden">
@@ -207,38 +176,44 @@
 
                 <!-- centred buttons -->
                 <div id="cropModeControls" class="flex justify-center items-center gap-3 mb-4">
-                    <button id="autoCropBtn"   class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg btn-hover">Auto Crop</button>
-                    <button id="manualCropBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg btn-hover">Manual Crop</button>
+                    <button id="autoCropBtn"   aria-pressed="true"  class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg btn-hover">Auto Crop</button>
+                    <button id="manualCropBtn" aria-pressed="false" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg btn-hover">Manual Crop</button>
                     <button id="confirmCropBtn" class="bg-accent hover:bg-orange-600 text-white px-4 py-2 rounded-lg btn-hover disabled:opacity-50" disabled>Confirm Selection</button>
+                </div>
+                <div class="flex justify-center mb-4">
+                    <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input id="bwToggle" type="checkbox" class="h-4 w-4 accent-emerald-500" checked>
+                        Pure black &amp; white (recommended: prevents gray streaks on printed labels)
+                    </label>
                 </div>
 
                 <!-- canvases -->
                 <div id="previewContainer" class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden">
-                    <div id="canvasContainer" class="relative mb-6">
-                        <div class="canvas-frame">
-                            <canvas id="originalCanvas" class="mb-4"></canvas>
-                        </div>
+                    <!-- page with crop selection -->
+                    <div class="canvas-frame mb-6 w-full max-w-[800px]">
+                        <div id="cropStage" class="relative select-none">
+                            <canvas id="originalCanvas" class="block w-full h-auto"></canvas>
 
-                        <!-- grey overlay -->
-                        <div id="ovTop"    class="overlay-part"></div>
-                        <div id="ovLeft"   class="overlay-part"></div>
-                        <div id="ovRight"  class="overlay-part"></div>
-                        <div id="ovBottom" class="overlay-part"></div>
+                            <!-- dark overlay outside the selection -->
+                            <div id="ovTop"    class="overlay-part" hidden></div>
+                            <div id="ovLeft"   class="overlay-part" hidden></div>
+                            <div id="ovRight"  class="overlay-part" hidden></div>
+                            <div id="ovBottom" class="overlay-part" hidden></div>
 
-                        <!-- selection rectangle -->
-                        <div id="selectionBox">
-                            <div class="handle nw"></div><div class="handle n"></div><div class="handle ne"></div>
-                            <div class="handle w"></div> <div class="handle e"></div>
-                            <div class="handle sw"></div><div class="handle s"></div><div class="handle se"></div>
-                        </div>
-
-                        <!-- on-screen cropped preview -->
-                        <div class="flex justify-center mb-6">
-                            <div class="canvas-frame">
-                                <canvas id="croppedCanvas" class="border-2 border-dashed border-red-500"></canvas>
+                            <!-- selection rectangle -->
+                            <div id="selectionBox" hidden>
+                                <div class="handle nw" data-handle="nw"></div><div class="handle n" data-handle="n"></div><div class="handle ne" data-handle="ne"></div>
+                                <div class="handle w" data-handle="w"></div><div class="handle e" data-handle="e"></div>
+                                <div class="handle sw" data-handle="sw"></div><div class="handle s" data-handle="s"></div><div class="handle se" data-handle="se"></div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- label as it will print -->
+                    <div class="canvas-frame mb-6">
+                        <canvas id="croppedCanvas" class="block max-w-full h-auto border-2 border-dashed border-red-500"></canvas>
+                    </div>
+
                     <!-- action buttons -->
                     <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
                         <!-- Download -->
