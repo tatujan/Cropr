@@ -53,3 +53,31 @@ export function placeMask(mask, w, h, pageWidth, pageHeight, dx, dy) {
   }
   return page;
 }
+
+/**
+ * Find the box around all dark pixels (the label content) in RGBA pixel data.
+ * Light gray haze and canvas read-back noise are below the threshold, so they
+ * do not count. Returns null when there is no content.
+ * @param {ArrayLike<number>} data  width × height RGBA pixels
+ * @param {number} width @param {number} height
+ * @returns {{x0: number, y0: number, x1: number, y1: number} | null}  x1, y1 exclusive
+ */
+export function contentBounds(data, width, height, threshold = BW_THRESHOLD) {
+  const limit = threshold * 1000;
+  let x0 = width;
+  let y0 = height;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < height; y++) {
+    let i = y * width * 4;
+    for (let x = 0; x < width; x++, i += 4) {
+      if (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114 < limit) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        y1 = y;
+      }
+    }
+  }
+  return x1 < 0 ? null : { x0, y0, x1: x1 + 1, y1: y1 + 1 };
+}

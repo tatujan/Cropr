@@ -4,12 +4,15 @@ import zlib from 'node:zlib';
 /** Page box of the test PDF, in PDF points (Letter). */
 export const PAGE = { width: 612, height: 792 };
 
-/** The black frame that the test PDF draws, as page fractions from the top left. */
+/** Line width of the black frame, in PDF points */
+export const FRAME_LINE = 8;
+
+/** The black frame that the test PDF draws (line centers), as page fractions from the top left. */
 export const FRAME = { x0: 72 / 612, y0: 72 / 792, x1: 306 / 612, y1: 216 / 792 };
 
 /**
  * Make a small Letter PDF. Each page has a light gray background (like the
- * haze on real labels), a 4 pt black frame at FRAME, a text line, and a
+ * haze on real labels), a black frame at FRAME, a text line, and a
  * mid-gray bar.
  * @param {number} [pages]
  */
@@ -17,7 +20,7 @@ export function makeTestPdf(pages = 1) {
   const content = (/** @type {number} */ n) =>
     [
       '0.93 g 0 0 612 792 re f',
-      '0 G 4 w 72 576 234 144 re S',
+      `0 G ${FRAME_LINE} w 72 576 234 144 re S`,
       `0 g BT /F1 24 Tf 90 650 Td (CROPR TEST ${n}) Tj ET`,
       '0.5 g 72 300 468 20 re f',
     ].join('\n') + '\n';
@@ -115,4 +118,44 @@ export function addCanvasNoise() {
     if (ctx) ctx.putImageData(ctx.getImageData(0, 0, this.width, this.height), 0, 0);
     return toBlob.apply(this, /** @type {Parameters<typeof toBlob>} */ (args));
   };
+}
+
+/**
+ * The box around all black pixels of a decoded PNG (x1, y1 exclusive).
+ * @param {ReturnType<typeof decodeBilevelPng>} img
+ */
+export function blackBounds(img) {
+  let x0 = img.width;
+  let y0 = img.height;
+  let x1 = 0;
+  let y1 = 0;
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      if (!img.isBlack(x, y)) continue;
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x + 1);
+      y1 = Math.max(y1, y + 1);
+    }
+  }
+  return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
+}
+
+/**
+ * Names and contents of the files in a ZIP that uses the store method.
+ * @param {Buffer} zip
+ */
+export function readStoreZip(zip) {
+  /** @type {{name: string, data: Buffer}[]} */
+  const files = [];
+  let o = 0;
+  while (zip.readUInt32LE(o) === 0x04034b50) {
+    const size = zip.readUInt32LE(o + 18);
+    const nameLen = zip.readUInt16LE(o + 26);
+    const name = zip.toString('utf8', o + 30, o + 30 + nameLen);
+    const start = o + 30 + nameLen;
+    files.push({ name, data: zip.subarray(start, start + size) });
+    o = start + size;
+  }
+  return files;
 }

@@ -2,18 +2,58 @@
  *
  * A CropSelection is { x, y, w, h } in fractions (0..1) of the page size.
  * Fractions do not change when the preview size changes, so the same
- * Selection is correct for the on-screen box and for the 300 DPI bitmap.
+ * selection is correct for the on-screen box and for the 300 DPI bitmap.
  */
 
 /** @typedef {{x: number, y: number, w: number, h: number}} CropSelection */
 
-export const LETTER = { width: 2550, height: 3300 }; // 8.5 × 11 in at 300 DPI
+export const DPI = 300;
+
+/**
+ * Output paper sizes at 300 DPI. `area` is where the label goes: the top half
+ * of a Letter sheet (so the bottom half stays free), or the whole 4×6 label.
+ * @typedef {'letter' | '4x6'} PaperKey
+ * @typedef {{width: number, height: number, area: {x: number, y: number, width: number, height: number}, margin: number, size: string}} Paper
+ * @type {Record<PaperKey, Paper>}
+ */
+export const PAPERS = {
+  letter: {
+    width: 2550,
+    height: 3300,
+    area: { x: 0, y: 0, width: 2550, height: 1650 },
+    margin: 60, // 0.2 in
+    size: '8.5 × 11 in',
+  },
+  '4x6': {
+    width: 1200,
+    height: 1800,
+    area: { x: 0, y: 0, width: 1200, height: 1800 },
+    margin: 30, // 0.1 in
+    size: '4 × 6 in',
+  },
+};
 
 export const MIN_SELECTION = 0.02; // smallest width or height of a selection
-export const PORTRAIT_RATIO = 1.2; // taller than wide by this ratio → turn 90°
-
-export const AUTO_SELECTION = Object.freeze({ x: 0, y: 0, w: 1, h: 0.5 });
 export const DEFAULT_MANUAL_SELECTION = Object.freeze({ x: 0.1, y: 0.15, w: 0.8, h: 0.4 });
+
+/** Pages taller than this (in inches) hold the label in the top half. */
+export const HALF_PAGE_MIN_HEIGHT_IN = 9;
+/** White space kept around the trimmed label content: 0.05 in. */
+export const TRIM_PADDING = 15;
+
+/**
+ * The area that auto crop starts from. A Letter, A4 or Legal page holds the
+ * label in its top half. A smaller page (for example a 4×6 label PDF) is the label.
+ * @param {number} widthPt  page width in PDF points (1/72 in)
+ * @param {number} heightPt
+ * @returns {{selection: CropSelection, kind: 'top-half' | 'whole-page'}}
+ */
+export function autoCropArea(widthPt, heightPt) {
+  if (heightPt / 72 > HALF_PAGE_MIN_HEIGHT_IN && heightPt > widthPt) {
+    return { selection: { x: 0, y: 0, w: 1, h: 0.5 }, kind: 'top-half' };
+  }
+  return { selection: { x: 0, y: 0, w: 1, h: 1 }, kind: 'whole-page' };
+}
 
 /** @param {number} v @param {number} lo @param {number} hi */
 export const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
@@ -67,26 +107,57 @@ export function selectionToPixels(sel, width, height) {
 }
 
 /**
- * Find where an sw × sh label goes on the top half of a Letter page.
- * A portrait label turns 90° clockwise. `dw` × `dh` is the size on the page
- * after the turn. All output values are integers, so no edge falls between pixels.
- * @param {number} sw @param {number} sh
- * @returns {{rotate: boolean, dw: number, dh: number, dx: number, dy: number}}
+ * Make a pixel rectangle smaller to the content bounds (from `contentBounds`,
+ * relative to the rectangle), with `pad` pixels of white space kept around it.
+ * With no content, the rectangle does not change.
+ * @param {PixelRect} rect
+ * @param {{x0: number, y0: number, x1: number, y1: number} | null} bounds
+ * @returns {PixelRect}
  */
-export function fitOnHalfLetter(sw, sh, margin = 0) {
-  const rotate = sh > sw * PORTRAIT_RATIO;
-  const [w, h] = rotate ? [sh, sw] : [sw, sh];
-  const maxW = LETTER.width - 2 * margin;
-  const maxH = LETTER.height / 2 - 2 * margin;
-  const scale = Math.min(maxW / w, maxH / h);
+export function trimRect(rect, bounds, pad = TRIM_PADDING) {
+  if (!bounds) return rect;
+  const x0 = Math.max(0, bounds.x0 - pad);
+  const y0 = Math.max(0, bounds.y0 - pad);
+  const x1 = Math.min(rect.sw, bounds.x1 + pad);
+  const y1 = Math.min(rect.sh, bounds.y1 + pad);
+  return { sx: rect.sx + x0, sy: rect.sy + y0, sw: x1 - x0, sh: y1 - y0 };
+}
+
+/** @typedef {0 | 90 | 180 | 270} Rotation */
+
+/**
+ * Find where an sw × sh label goes on the paper. The label turns 90° when that
+ * makes it fit larger; `turn` (the user's rotation) adds to that. The label
+ * never becomes larger than its true size (scale ≤ 1). `dw` × `dh` is the size
+ * on the paper after the rotation. All values are integers, so no edge falls
+ * between pixels.
+ * @param {number} sw @param {number} sh
+ * @param {PaperKey} paperKey
+ * @param {Rotation} [turn]
+ * @returns {{rotation: Rotation, scale: number, dw: number, dh: number, dx: number, dy: number}}
+ */
+export function fitOnPaper(sw, sh, paperKey, turn = 0) {
+  const { area, margin } = PAPERS[paperKey];
+  const maxW = area.width - 2 * margin;
+  const maxH = area.height - 2 * margin;
+  /** @param {number} w @param {number} h */
+  const fit = (w, h) => Math.min(1, maxW / w, maxH / h);
+
+  const autoTurn = fit(sh, sw) > fit(sw, sh) ? 90 : 0;
+  const rotation = /** @type {Rotation} */ ((autoTurn + turn) % 360);
+  const sideways = rotation % 180 !== 0;
+  const w = sideways ? sh : sw;
+  const h = sideways ? sw : sh;
+  const scale = fit(w, h);
   const dw = Math.round(w * scale);
   const dh = Math.round(h * scale);
   return {
-    rotate,
+    rotation,
+    scale,
     dw,
     dh,
-    dx: Math.round((LETTER.width - dw) / 2),
-    dy: Math.round(margin + (maxH - dh) / 2),
+    dx: area.x + Math.round((area.width - dw) / 2),
+    dy: area.y + Math.round((area.height - dh) / 2),
   };
 }
 

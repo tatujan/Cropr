@@ -1,9 +1,11 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
-  LETTER,
   MIN_SELECTION,
-  fitOnHalfLetter,
+  PAPERS,
+  autoCropArea,
+  fitOnPaper,
+  trimRect,
   moveSelection,
   KEY_STEP,
   resizeSelection,
@@ -71,28 +73,63 @@ test('selectionToPixels always gives at least one pixel inside the bitmap', () =
   });
 });
 
-test('fitOnHalfLetter puts the top half of a Letter page 1:1', () => {
-  assert.deepEqual(fitOnHalfLetter(LETTER.width, LETTER.height / 2), {
-    rotate: false,
-    dw: 2550,
-    dh: 1650,
-    dx: 0,
-    dy: 0,
+test('autoCropArea takes the top half of Letter, A4 and Legal pages', () => {
+  for (const [w, h] of [
+    [612, 792],
+    [595, 842],
+    [612, 1008],
+  ]) {
+    assert.deepEqual(autoCropArea(w, h), {
+      selection: { x: 0, y: 0, w: 1, h: 0.5 },
+      kind: 'top-half',
+    });
+  }
+});
+
+test('autoCropArea takes the whole page of a label-size or landscape page', () => {
+  assert.equal(autoCropArea(288, 432).kind, 'whole-page'); // 4 × 6 in
+  assert.equal(autoCropArea(792, 612).kind, 'whole-page'); // Letter, landscape
+});
+
+test('trimRect keeps padding around the content and stays inside the rectangle', () => {
+  const rect = { sx: 100, sy: 50, sw: 1000, sh: 800 };
+  assert.deepEqual(trimRect(rect, { x0: 200, y0: 100, x1: 600, y1: 500 }, 15), {
+    sx: 285,
+    sy: 135,
+    sw: 430,
+    sh: 430,
   });
+  assert.deepEqual(trimRect(rect, { x0: 5, y0: 0, x1: 1000, y1: 790 }, 15), rect);
+  assert.equal(trimRect(rect, null), rect);
 });
 
-test('fitOnHalfLetter turns a portrait label and keeps it in the top half', () => {
-  const p = fitOnHalfLetter(1200, 1800, 60); // 4 × 6 in label at 300 DPI
-  assert.equal(p.rotate, true);
-  assert.ok(p.dw > p.dh);
-  assert.ok(p.dy >= 60 && p.dy + p.dh <= LETTER.height / 2 - 60);
-  assert.ok(p.dx >= 60 && p.dx + p.dw <= LETTER.width - 60);
-  assert.ok(Math.abs(p.dw / p.dh - 1800 / 1200) < 0.01);
+test('fitOnPaper puts a label that fits at true size, centered in the area', () => {
+  const p = fitOnPaper(1000, 600, 'letter');
+  assert.deepEqual(p, { rotation: 0, scale: 1, dw: 1000, dh: 600, dx: 775, dy: 525 });
 });
 
-test('fitOnHalfLetter gives integer positions', () => {
-  const p = fitOnHalfLetter(777, 333, 60);
-  for (const v of [p.dx, p.dy, p.dw, p.dh]) assert.ok(Number.isInteger(v));
+test('fitOnPaper turns a label when that makes it larger', () => {
+  // A 6 × 4 in label (landscape) on 4 × 6 paper turns to portrait
+  const p = fitOnPaper(1800, 1200, '4x6');
+  assert.equal(p.rotation, 90);
+  assert.ok(p.dh > p.dw);
+  assert.ok(p.scale > 0.9);
+  // A tall label in the wide top half of Letter turns to landscape
+  assert.equal(fitOnPaper(1200, 1800, 'letter').rotation, 90);
+});
+
+test('fitOnPaper adds the user rotation and keeps the label inside the margins', () => {
+  for (const turn of /** @type {const} */ ([0, 90, 180, 270])) {
+    for (const paper of /** @type {const} */ (['letter', '4x6'])) {
+      const p = fitOnPaper(2550, 1650, paper, turn);
+      const { area, margin } = PAPERS[paper];
+      assert.ok(p.dx >= area.x + margin && p.dx + p.dw <= area.x + area.width - margin);
+      assert.ok(p.dy >= area.y + margin && p.dy + p.dh <= area.y + area.height - margin);
+      for (const v of [p.dx, p.dy, p.dw, p.dh]) assert.ok(Number.isInteger(v));
+    }
+  }
+  assert.equal(fitOnPaper(1000, 600, 'letter', 180).rotation, 180);
+  assert.equal(fitOnPaper(1800, 1200, '4x6', 270).rotation, 0); // auto 90 + 270
 });
 
 test('selectionFromKey moves the selection with arrow keys', () => {

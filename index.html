@@ -5,405 +5,353 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Crop PDF shipping labels and print them. Everything stays in your browser."
+      content="Crop PDF shipping labels and print them on 4×6 or Letter. Free, no sign-up, works offline. Your file never leaves your browser."
     />
-    <meta name="theme-color" content="#10b981" />
-    <title>Cropr - PDF Label Cropper</title>
+    <meta name="theme-color" content="#009966" />
+    <title>Cropr – crop shipping labels in one click</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <!-- Sets the saved theme before the first paint (an external file, so the CSP allows it) -->
+    <script src="/theme-init.js"></script>
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.js"></script>
   </head>
 
-  <body class="bg-linear-to-br from-gray-50 to-gray-100 min-h-screen">
-    <div class="max-w-4xl mx-auto px-4 py-8">
-      <header class="text-center mb-12">
-        <h1 class="text-4xl md:text-5xl font-bold text-dark mb-3">Cropr</h1>
-        <p class="text-gray-600 max-w-2xl mx-auto text-lg">
-          Crop PDF shipping labels instantly. Auto-crop the top half or select manually, then
-          download or print as US-Letter PNG.
+  <body>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="Cropr home">
+        <span class="wordmark-tile" aria-hidden="true"></span>
+        <span class="wordmark-text">cropr</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#how">How it works</a>
+        <a href="#privacy">Privacy</a>
+        <a href="https://github.com/tatujan/Cropr" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="theme-toggle" role="radiogroup" aria-label="Color theme">
+        <button
+          type="button"
+          role="radio"
+          data-theme-value="system"
+          aria-checked="true"
+          aria-label="Match system"
+          title="Match system"
+        >
+          <span class="glyph-system" aria-hidden="true"></span>
+        </button>
+        <button
+          type="button"
+          role="radio"
+          data-theme-value="light"
+          aria-checked="false"
+          aria-label="Day"
+          title="Day"
+        >
+          <span class="glyph-light" aria-hidden="true"></span>
+        </button>
+        <button
+          type="button"
+          role="radio"
+          data-theme-value="dark"
+          aria-checked="false"
+          aria-label="Dark"
+          title="Dark"
+        >
+          <span class="glyph-dark" aria-hidden="true"></span>
+        </button>
+      </div>
+    </header>
+
+    <main class="page">
+      <!-- Empty state -->
+      <section id="hero" class="hero" aria-labelledby="heroTitle">
+        <span class="badge">Free · No sign-up · Works offline</span>
+        <h1 id="heroTitle">Crop shipping labels in one click.</h1>
+        <p class="lead">
+          Drop a label PDF. Cropr crops the label, trims the white space, and prints it on 4×6 or
+          Letter. Your file never leaves your browser.
         </p>
-      </header>
+      </section>
 
-      <main
-        class="main-card bg-linear-to-b from-white to-gray-50/30 rounded-2xl border border-gray-200/50 overflow-hidden"
-      >
-        <!-- Upload -->
-        <section class="p-6 border-b" aria-labelledby="uploadHeading">
-          <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer mb-6">
-            <div class="flex flex-col items-center justify-center">
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-12 w-12 text-primary mb-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 16v-4m0 0V8m0 4H8m4 0h4m2 6H6a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v9a2 2 0 01-2 2z"
-                />
-              </svg>
-              <h2 id="uploadHeading" class="text-xl font-semibold text-gray-800 mb-2">
-                Upload PDF Label
-              </h2>
-              <p class="text-gray-600 mb-4">
-                Drag&nbsp;&amp;&nbsp;drop your file here or click to browse
-              </p>
-
-              <input
-                id="fileInput"
-                type="file"
-                class="hidden"
-                accept=".pdf,application/pdf"
-                aria-labelledby="browseBtn"
-              />
-              <button
-                id="browseBtn"
-                type="button"
-                class="bg-primary text-white font-medium py-2 px-6 rounded-lg btn-hover"
-              >
-                Select File
-              </button>
-
-              <p class="text-gray-500 text-sm mt-4">
-                All processing is done locally in your browser. Your file never leaves your
-                computer.
-              </p>
-              <p class="text-gray-500 text-sm mt-1">PDF files only</p>
-            </div>
-          </div>
-
-          <p
-            id="errorMsg"
-            role="alert"
-            class="hidden mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm"
-          ></p>
-
-          <div id="progressContainer" class="mb-4 hidden">
-            <div class="flex justify-between mb-1">
-              <span id="progressLabel" class="text-sm font-medium text-gray-700">Processing…</span>
-              <span
-                id="progressPercent"
-                class="text-sm font-medium text-gray-700"
-                aria-hidden="true"
-                >0 %</span
-              >
-            </div>
-            <div
-              id="progressTrack"
-              class="w-full bg-gray-200 rounded-full h-2 shadow-inner"
-              role="progressbar"
-              aria-labelledby="progressLabel"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              aria-valuenow="0"
-            >
-              <div id="progressBar" class="progress-bar rounded-full"></div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Preview -->
-        <section class="p-6" aria-labelledby="previewHeading">
-          <h2 id="previewHeading" class="text-xl font-semibold text-gray-800 mb-4">Preview</h2>
-
-          <div id="pageControls" class="flex justify-center items-center gap-3 mb-4 hidden">
-            <button
-              id="prevPageBtn"
-              type="button"
-              aria-label="Previous page"
-              class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded-sm disabled:opacity-50 btn-hover"
-              disabled
-            >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <span id="pageInfo" class="text-gray-600 font-medium px-3" aria-live="polite"
-              >Page 1 of 1</span
-            >
-            <button
-              id="nextPageBtn"
-              type="button"
-              aria-label="Next page"
-              class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded-sm disabled:opacity-50 btn-hover"
-              disabled
-            >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
-
-          <div class="flex flex-wrap justify-center items-center gap-3 mb-4">
-            <button
-              id="autoCropBtn"
-              type="button"
-              aria-pressed="true"
-              class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg btn-hover"
-            >
-              Auto Crop
-            </button>
-            <button
-              id="manualCropBtn"
-              type="button"
-              aria-pressed="false"
-              class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg btn-hover"
-            >
-              Manual Crop
-            </button>
-            <button
-              id="confirmCropBtn"
-              type="button"
-              class="bg-accent hover:bg-orange-600 text-white px-4 py-2 rounded-lg btn-hover disabled:opacity-50"
-              disabled
-            >
-              Confirm Selection
-            </button>
-          </div>
-          <div class="flex justify-center mb-4">
-            <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input id="bwToggle" type="checkbox" class="h-4 w-4 accent-emerald-500" checked />
-              Pure black &amp; white (recommended: prevents gray streaks on printed labels)
-            </label>
-          </div>
-
-          <div
-            id="previewContainer"
-            class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden"
+      <div id="dropZone" class="dropzone">
+        <div class="dropzone-icon" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            <p id="selectionHelp" class="text-sm text-gray-600 mb-3 text-center" hidden>
-              Drag the box or its handles. With the keyboard: arrow keys move the box, Shift + arrow
-              keys change its size, Enter confirms.
-            </p>
+            <path
+              d="M12 16v-4m0 0V8m0 4H8m4 0h4m2 6H6a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v9a2 2 0 01-2 2z"
+            />
+          </svg>
+        </div>
+        <div>
+          <p class="dropzone-title">Drop your label PDF here</p>
+          <p class="dropzone-hint">Multi-page PDFs supported</p>
+        </div>
+        <input
+          id="fileInput"
+          type="file"
+          hidden
+          accept=".pdf,application/pdf"
+          aria-labelledby="browseBtn"
+        />
+        <button id="browseBtn" type="button" class="btn btn-primary btn-lg">Select PDF</button>
+      </div>
 
-            <!-- page with crop selection -->
-            <div class="canvas-frame mb-6 w-full max-w-[800px]">
-              <div id="cropStage" class="relative select-none">
-                <canvas
-                  id="originalCanvas"
-                  class="block w-full h-auto"
-                  role="img"
-                  aria-label="PDF page"
-                ></canvas>
+      <div id="progressContainer" hidden>
+        <div
+          id="progressTrack"
+          class="progress"
+          role="progressbar"
+          aria-label="Opening the PDF"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
 
-                <!-- dark overlay outside the selection -->
-                <div id="ovTop" class="overlay-part" hidden></div>
-                <div id="ovLeft" class="overlay-part" hidden></div>
-                <div id="ovRight" class="overlay-part" hidden></div>
-                <div id="ovBottom" class="overlay-part" hidden></div>
+      <div id="errorAlert" class="alert" role="alert" hidden>
+        <span class="alert-mark" aria-hidden="true">!</span>
+        <div class="alert-body">
+          <span id="errorTitle" class="alert-title"></span>
+          <span id="errorText" class="alert-text"></span>
+        </div>
+        <button id="errorDismiss" type="button" class="alert-dismiss" aria-label="Dismiss">
+          ×
+        </button>
+      </div>
 
-                <!-- selection rectangle -->
-                <div
-                  id="selectionBox"
-                  tabindex="0"
-                  role="group"
-                  aria-roledescription="crop selection"
-                  aria-label="Crop selection"
-                  aria-describedby="selectionHelp"
-                  hidden
+      <div id="heroNotes" class="hero-notes">
+        <span class="privacy-note">Processed locally</span>
+        <span>300 DPI, barcode-sharp</span>
+      </div>
+
+      <!-- Crop workspace -->
+      <section id="workspace" class="panel" aria-label="Crop" hidden>
+        <div class="panel-section">
+          <div class="file-bar">
+            <span class="file-icon" aria-hidden="true">PDF</span>
+            <div class="file-info">
+              <span id="fileName" class="file-name"></span>
+              <span id="fileMeta" class="mono"></span>
+            </div>
+            <button id="replaceBtn" type="button" class="btn btn-secondary btn-sm">Replace</button>
+          </div>
+        </div>
+
+        <div id="pageStripSection" class="panel-section" hidden>
+          <div class="page-strip">
+            <ol id="pageStrip" aria-label="Pages"></ol>
+            <span id="pageCount" class="page-strip-count" aria-live="polite"></span>
+          </div>
+        </div>
+
+        <div class="panel-section row between">
+          <div class="segmented" role="radiogroup" aria-label="Crop mode">
+            <button id="autoCropBtn" type="button" role="radio" aria-checked="true">
+              Auto crop
+            </button>
+            <button id="manualCropBtn" type="button" role="radio" aria-checked="false">
+              Manual
+            </button>
+          </div>
+          <span id="cropStatus"></span>
+        </div>
+
+        <div class="panel-section well stage-well">
+          <div id="cropStage" class="crop-stage">
+            <canvas id="originalCanvas" role="img" aria-label="PDF page"></canvas>
+            <div id="ovTop" class="scrim"></div>
+            <div id="ovLeft" class="scrim"></div>
+            <div id="ovRight" class="scrim"></div>
+            <div id="ovBottom" class="scrim"></div>
+            <div id="selectionBox" class="crop-box" aria-describedby="cropHelp">
+              <div class="handle" data-handle="nw" aria-hidden="true"></div>
+              <div class="handle" data-handle="n" aria-hidden="true"></div>
+              <div class="handle" data-handle="ne" aria-hidden="true"></div>
+              <div class="handle" data-handle="w" aria-hidden="true"></div>
+              <div class="handle" data-handle="e" aria-hidden="true"></div>
+              <div class="handle" data-handle="sw" aria-hidden="true"></div>
+              <div class="handle" data-handle="s" aria-hidden="true"></div>
+              <div class="handle" data-handle="se" aria-hidden="true"></div>
+            </div>
+            <span id="cropTag" class="tag crop-tag"></span>
+          </div>
+        </div>
+
+        <div class="panel-section row">
+          <p id="cropHelp" class="helper"></p>
+          <button id="cancelCropBtn" type="button" class="btn btn-secondary" hidden>Cancel</button>
+          <button id="confirmCropBtn" type="button" class="btn btn-primary" hidden>
+            Apply crop
+          </button>
+          <button id="editCropBtn" type="button" class="btn btn-secondary" hidden>Edit crop</button>
+        </div>
+      </section>
+
+      <!-- Output -->
+      <section id="output" class="panel" aria-labelledby="outputTitle" hidden>
+        <div class="panel-head">
+          <h2 id="outputTitle" class="panel-title">Ready to print</h2>
+          <span id="outputCount" class="mono"></span>
+        </div>
+        <div class="output-body">
+          <div class="output-preview">
+            <canvas id="croppedCanvas" role="img" aria-label="Label, as it will print"></canvas>
+            <span id="outputMeta" class="mono"></span>
+          </div>
+          <div class="output-settings">
+            <div class="setting">
+              <span id="paperLabel" class="label-strong">Paper</span>
+              <div class="paper-options" role="radiogroup" aria-labelledby="paperLabel">
+                <button
+                  type="button"
+                  class="paper-option"
+                  role="radio"
+                  data-paper="4x6"
+                  aria-checked="true"
                 >
-                  <div class="handle nw" data-handle="nw" aria-hidden="true"></div>
-                  <div class="handle n" data-handle="n" aria-hidden="true"></div>
-                  <div class="handle ne" data-handle="ne" aria-hidden="true"></div>
-                  <div class="handle w" data-handle="w" aria-hidden="true"></div>
-                  <div class="handle e" data-handle="e" aria-hidden="true"></div>
-                  <div class="handle sw" data-handle="sw" aria-hidden="true"></div>
-                  <div class="handle s" data-handle="s" aria-hidden="true"></div>
-                  <div class="handle se" data-handle="se" aria-hidden="true"></div>
-                </div>
+                  <span class="paper-option-title">4×6</span>
+                  <span class="paper-option-text">Thermal printer</span>
+                </button>
+                <button
+                  type="button"
+                  class="paper-option"
+                  role="radio"
+                  data-paper="letter"
+                  aria-checked="false"
+                >
+                  <span class="paper-option-title">Letter</span>
+                  <span class="paper-option-text">Inkjet / laser</span>
+                </button>
               </div>
             </div>
 
-            <!-- label as it will print -->
-            <div class="canvas-frame mb-6">
-              <canvas
-                id="croppedCanvas"
-                class="block max-w-full h-auto border-2 border-dashed border-red-500"
-                role="img"
-                aria-label="Cropped label, as it will print"
-              ></canvas>
+            <div class="row between">
+              <span class="label-strong">Rotate</span>
+              <div class="row">
+                <button
+                  id="rotateLeftBtn"
+                  type="button"
+                  class="icon-btn"
+                  aria-label="Rotate left"
+                  title="Rotate left"
+                >
+                  ↺
+                </button>
+                <button
+                  id="rotateRightBtn"
+                  type="button"
+                  class="icon-btn"
+                  aria-label="Rotate right"
+                  title="Rotate right"
+                >
+                  ↻
+                </button>
+              </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+            <div class="switch-row">
+              <div class="alert-body">
+                <span id="bwLabel" class="label-strong">Pure black &amp; white</span>
+                <span id="bwHelp" class="label-help">Prevents gray streaks on printed labels</span>
+              </div>
               <button
-                id="downloadBtn"
+                id="bwToggle"
                 type="button"
-                class="flex-1 bg-primary hover:bg-emerald-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
-                disabled
-              >
-                <svg
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5 mr-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                Download PNG
-              </button>
+                class="switch"
+                role="switch"
+                aria-checked="true"
+                aria-labelledby="bwLabel"
+                aria-describedby="bwHelp"
+              ></button>
+            </div>
 
-              <button
-                id="printBtn"
-                type="button"
-                class="flex-1 bg-accent hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
-                disabled
-              >
-                <svg
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5 mr-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
+            <div class="output-actions">
+              <button id="printBtn" type="button" class="btn btn-primary btn-lg btn-block" disabled>
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                   <path
                     fill-rule="evenodd"
+                    clip-rule="evenodd"
                     d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z"
-                    clip-rule="evenodd"
                   />
                 </svg>
-                Print
+                <span id="printLabel">Print label</span>
               </button>
-
-              <button
-                id="resetBtn"
-                type="button"
-                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap"
-              >
-                <svg
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5 mr-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                Reset
-              </button>
+              <div class="row">
+                <button id="downloadBtn" type="button" class="btn btn-secondary btn-block" disabled>
+                  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path
+                      fill-rule="evenodd"
+                      clip-rule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                    />
+                  </svg>
+                  <span id="downloadLabel">Download PNG</span>
+                </button>
+                <button id="resetBtn" type="button" class="btn btn-ghost">Start over</button>
+              </div>
             </div>
-          </div>
-          <div id="emptyPreview" class="text-center py-12">
-            <svg
-              aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-16 w-16 mx-auto text-gray-300 mb-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <p class="text-gray-500">Upload a PDF to see the preview</p>
-          </div>
-        </section>
-      </main>
-
-      <section
-        class="mt-10 bg-white rounded-2xl shadow-lg border border-gray-200 p-8"
-        aria-labelledby="howHeading"
-      >
-        <h2 id="howHeading" class="text-center text-2xl font-semibold mb-8 text-dark">
-          How Cropr Works
-        </h2>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-          <div>
-            <div
-              class="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-lg"
-            >
-              1
-            </div>
-            <h3 class="font-semibold mb-2 text-dark">Upload PDF</h3>
-            <p class="text-sm text-gray-600">Upload your shipping label PDF file</p>
-          </div>
-          <div>
-            <div
-              class="w-12 h-12 mx-auto mb-3 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-lg"
-            >
-              2
-            </div>
-            <h3 class="font-semibold mb-2 text-dark">Crop Label</h3>
-            <p class="text-sm text-gray-600">
-              Auto-crop the top half or manually select the area you need
-            </p>
-          </div>
-          <div>
-            <div
-              class="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-lg"
-            >
-              3
-            </div>
-            <h3 class="font-semibold mb-2 text-dark">Download &amp; Print</h3>
-            <p class="text-sm text-gray-600">Get your cropped label as PNG or print directly</p>
           </div>
         </div>
       </section>
 
-      <footer class="mt-10 flex items-center justify-center gap-3 text-gray-400 text-sm">
-        <span>© 2025 Cropr. All rights reserved.</span>
-        <a
-          href="https://github.com/tatujan/Cropr"
-          target="_blank"
-          rel="noopener"
-          aria-label="Cropr on GitHub"
-          class="text-gray-400 hover:text-gray-600 transition"
+      <section id="how" class="section" aria-labelledby="howTitle">
+        <div class="section-head">
+          <span class="overline">How it works</span>
+          <h2 id="howTitle">Three steps. No account. No upload.</h2>
+        </div>
+        <ol class="steps">
+          <li class="step">
+            <span class="step-n" aria-hidden="true">01</span>
+            <span class="step-title">Drop the PDF</span>
+            <span class="step-text"
+              >Any label from FedEx, UPS, USPS or your store. Multi-page files work too.</span
+            >
+          </li>
+          <li class="step">
+            <span class="step-n" aria-hidden="true">02</span>
+            <span class="step-title">Crop automatically</span>
+            <span class="step-text"
+              >Cropr takes the label half of each page and trims the white space. Drag a box to crop
+              it yourself.</span
+            >
+          </li>
+          <li class="step">
+            <span class="step-n" aria-hidden="true">03</span>
+            <span class="step-title">Print or save</span>
+            <span class="step-text"
+              >Send it straight to a 4×6 thermal printer or Letter paper, or download a PNG.</span
+            >
+          </li>
+        </ol>
+      </section>
+
+      <section id="privacy" class="section" aria-labelledby="privacyTitle">
+        <div class="section-head">
+          <span class="overline">Privacy</span>
+          <h2 id="privacyTitle">Your labels stay on your computer.</h2>
+        </div>
+        <p class="privacy-text">
+          Cropr runs in your browser. Your PDF is never uploaded, and there is no account, no
+          analytics and no cookies. Cropr saves only your theme and paper choices, in your browser's
+          local storage.
+        </p>
+      </section>
+
+      <footer class="site-footer">
+        <span class="wordmark-text">cropr</span>
+        <span>© 2026</span>
+        <a class="push" href="https://github.com/tatujan/Cropr" target="_blank" rel="noopener"
+          >Open source on GitHub</a
         >
-          <svg
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            class="w-5 h-5"
-          >
-            <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-              d="M12 .5C5.658.5.5 5.657.5 12a11.5 11.5 0 008 10.94c.6.11.82-.26.82-.58 0-.29-.01-1.06-.02-2.08-3.26.71-3.95-1.57-3.95-1.57-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.74.08-.74 1.22.09 1.87 1.25 1.87 1.25 1.08 1.85 2.83 1.32 3.53 1.01.11-.78.42-1.32.76-1.62-2.6-.3-5.33-1.31-5.33-5.85 0-1.29.46-2.35 1.22-3.18-.12-.3-.53-1.52.12-3.17 0 0 .99-.32 3.25 1.21a11.3 11.3 0 015.92 0c2.26-1.53 3.25-1.21 3.25-1.21.66 1.65.24 2.87.12 3.17.76.83 1.22 1.89 1.22 3.18 0 4.55-2.74 5.54-5.35 5.83.43.37.81 1.1.81 2.22 0 1.6-.02 2.89-.02 3.28 0 .32.22.7.83.58A11.5 11.5 0 0023.5 12C23.5 5.657 18.343.5 12 .5z"
-            />
-          </svg>
-        </a>
+        <a href="#privacy">Privacy</a>
       </footer>
-    </div>
+    </main>
   </body>
 </html>

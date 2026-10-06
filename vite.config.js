@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -20,7 +19,6 @@ const securityHeaders = Object.fromEntries(
 
 export default defineConfig({
   plugins: [
-    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script', // an external file, which the CSP allows
@@ -28,8 +26,8 @@ export default defineConfig({
         name: 'Cropr – PDF Label Cropper',
         short_name: 'Cropr',
         description: 'Crop PDF shipping labels and print them. Everything stays in your browser.',
-        theme_color: '#10b981',
-        background_color: '#f9fafb',
+        theme_color: '#009966',
+        background_color: '#f6f7f5',
         display: 'standalone',
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
       },
@@ -40,6 +38,7 @@ export default defineConfig({
           '**/*.{html,js,mjs,css,svg,wasm,webmanifest}',
           'pdfjs/standard_fonts/*',
           'pdfjs/iccs/*',
+          'assets/*-wght-normal-*.woff2',
         ],
         globIgnores: ['pdfjs/wasm/*_nowasm_fallback.js', 'pdfjs/wasm/quickjs-*'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

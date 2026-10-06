@@ -1,20 +1,43 @@
-/* Put a cropped part of the page bitmap onto a US Letter page and make the PNG. */
+/* Crop a part of the page bitmap, put it on the output paper, and make the PNG. */
 
-import { LETTER, fitOnHalfLetter } from './geometry.js';
-import { maskToRgba, placeMask, toMask } from './image.js';
+import { PAPERS, fitOnPaper, selectionToPixels, trimRect } from './geometry.js';
+import { contentBounds, maskToRgba, placeMask, toMask } from './image.js';
 import { encodeBilevelPng } from './png.js';
+
+/** @typedef {import('./geometry.js').PixelRect} PixelRect */
+/** @typedef {import('./geometry.js').PaperKey} PaperKey */
+/** @typedef {import('./geometry.js').Rotation} Rotation */
+/** @typedef {ReturnType<typeof fitOnPaper>} Placement */
+
+/**
+ * Auto crop: the start area (see autoCropArea), made smaller to the label content.
+ * @param {HTMLCanvasElement} source  page bitmap at 300 DPI
+ * @param {import('./geometry.js').CropSelection} area
+ * @returns {PixelRect}
+ */
+export function autoCropRect(source, area) {
+  const rect = selectionToPixels(area, source.width, source.height);
+  const ctx = context2d(source, { willReadFrequently: true });
+  const { data } = ctx.getImageData(rect.sx, rect.sy, rect.sw, rect.sh);
+  return trimRect(rect, contentBounds(data, rect.sw, rect.sh));
+}
 
 /**
  * @param {HTMLCanvasElement} source  page bitmap at 300 DPI
- * @param {import('./geometry.js').PixelRect} rect  crop area in source pixels
- * @param {{margin?:number, blackAndWhite?:boolean}} options
- * @returns {Promise<{blob: Blob, preview: HTMLCanvasElement}>}
- *   blob: the Letter page as PNG. preview: only the label part, as it prints.
+ * @param {PixelRect} rect  crop area in source pixels
+ * @param {{paper?: PaperKey, turn?: Rotation, blackAndWhite?: boolean}} options
+ * @returns {Promise<{blob: Blob, label: HTMLCanvasElement, placement: Placement}>}
+ *   blob: the full paper page as PNG. label: only the label, as it prints.
  */
-export async function makeLabelPng(source, rect, { margin = 0, blackAndWhite = true } = {}) {
-  const p = fitOnHalfLetter(rect.sw, rect.sh, margin);
+export async function makeLabelPng(
+  source,
+  rect,
+  { paper = 'letter', turn = 0, blackAndWhite = true } = {},
+) {
+  const page = PAPERS[paper];
+  const p = fitOnPaper(rect.sw, rect.sh, paper, turn);
 
-  // Draw only the label, at its final size and turn. The rest of the page stays white.
+  // Draw only the label, at its final size and rotation. The rest of the paper stays white.
   const label = document.createElement('canvas');
   label.width = p.dw;
   label.height = p.dh;
@@ -23,19 +46,17 @@ export async function makeLabelPng(source, rect, { margin = 0, blackAndWhite = t
   ctx.fillRect(0, 0, p.dw, p.dh);
   ctx.imageSmoothingQuality = 'high';
 
-  const { sx, sy, sw, sh } = rect;
-  if (p.rotate) {
-    // After the 90° turn, the source width is vertical: draw it dh wide and dw high.
-    ctx.translate(p.dw / 2, p.dh / 2);
-    ctx.rotate(Math.PI / 2);
-    ctx.drawImage(source, sx, sy, sw, sh, -p.dh / 2, -p.dw / 2, p.dh, p.dw);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-  } else {
-    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, p.dw, p.dh);
-  }
+  // Unrotated size of the label on the paper
+  const sideways = p.rotation % 180 !== 0;
+  const w = sideways ? p.dh : p.dw;
+  const h = sideways ? p.dw : p.dh;
+  ctx.translate(p.dw / 2, p.dh / 2);
+  ctx.rotate((p.rotation * Math.PI) / 180);
+  ctx.drawImage(source, rect.sx, rect.sy, rect.sw, rect.sh, -w / 2, -h / 2, w, h);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   if (!blackAndWhite) {
-    return { blob: await grayscaleLetterPng(label, p), preview: label };
+    return { blob: await grayscalePng(label, p, page), label, placement: p };
   }
 
   // getImageData can contain noise from browser fingerprinting protection.
@@ -43,20 +64,21 @@ export async function makeLabelPng(source, rect, { margin = 0, blackAndWhite = t
   const mask = toMask(ctx.getImageData(0, 0, p.dw, p.dh).data);
   ctx.putImageData(new ImageData(maskToRgba(mask), p.dw, p.dh), 0, 0);
 
-  const page = placeMask(mask, p.dw, p.dh, LETTER.width, LETTER.height, p.dx, p.dy);
-  const png = await encodeBilevelPng(page, LETTER.width, LETTER.height);
-  return { blob: new Blob([png], { type: 'image/png' }), preview: label };
+  const full = placeMask(mask, p.dw, p.dh, page.width, page.height, p.dx, p.dy);
+  const png = await encodeBilevelPng(full, page.width, page.height);
+  return { blob: new Blob([png], { type: 'image/png' }), label, placement: p };
 }
 
 /**
- * Letter PNG through canvas.toBlob. Browsers with fingerprinting protection can add noise.
- * @param {HTMLCanvasElement} label @param {{dx: number, dy: number}} p
+ * Paper PNG through canvas.toBlob. Browsers with fingerprinting protection can add noise.
+ * @param {HTMLCanvasElement} label @param {Placement} p
+ * @param {{width: number, height: number}} size
  * @returns {Promise<Blob>}
  */
-function grayscaleLetterPng(label, p) {
+function grayscalePng(label, p, size) {
   const page = document.createElement('canvas');
-  page.width = LETTER.width;
-  page.height = LETTER.height;
+  page.width = size.width;
+  page.height = size.height;
   const ctx = context2d(page);
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, page.width, page.height);
@@ -70,7 +92,7 @@ function grayscaleLetterPng(label, p) {
  * @param {HTMLCanvasElement} canvas
  * @param {CanvasRenderingContext2DSettings} [settings]
  */
-function context2d(canvas, settings) {
+export function context2d(canvas, settings) {
   const ctx = canvas.getContext('2d', settings);
   if (!ctx) throw new Error('Canvas 2D is not available');
   return ctx;

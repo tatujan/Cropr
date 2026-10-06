@@ -1,7 +1,4 @@
-@page {
-  size: Letter;
-  margin: 0;
-}
+/* main.js adds the @page rule with the paper size (Letter or 4 × 6 in). */
 html,
 body {
   margin: 0;
@@ -10,4 +7,8 @@ img {
   display: block;
   width: 100%;
   height: auto;
+  break-after: page;
+}
+img:last-child {
+  break-after: auto;
 }
