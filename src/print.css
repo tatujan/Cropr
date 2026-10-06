@@ -1,0 +1,13 @@
+@page {
+  size: Letter;
+  margin: 0;
+}
+html,
+body {
+  margin: 0;
+}
+img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

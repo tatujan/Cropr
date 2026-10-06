@@ -1,327 +1,409 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Crop PDF shipping labels and print them. Everything stays in your browser."
+    />
+    <meta name="theme-color" content="#10b981" />
     <title>Cropr - PDF Label Cropper</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script type="module" src="/src/main.js"></script>
+  </head>
 
-    <!-- Tailwind & libs -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <script type="module" src="src/main.js"></script>
-
-
-    <!-- Tailwind color tweaks -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#10b981',      // emerald-500
-                        secondary: '#475569',    // slate-600  
-                        accent: '#f97316',       // orange-500
-                        dark: '#1e293b',         // slate-800
-                    },
-                },
-            },
-        }
-    </script>
-    <style>
-        /* Enhanced animations and hover states */
-        .btn-hover {
-            transform: translateY(0);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .btn-hover:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
-        }
-        .btn-hover:active:not(:disabled) {
-            transform: translateY(0);
-            transition: all 0.1s;
-        }
-        
-        /* File upload zone */
-        .drop-zone{border:2px dashed #cbd5e1;transition:all .3s ease;border-radius:12px}
-        .drop-zone.active{border-color:#10b981;background:#f0fdf4;transform:scale(1.02)}
-        .drop-zone:hover{border-color:#10b981;background:#f9fafb;transform:scale(1.01)}
-        
-        /* Other elements */
-        .preview-container{transition:opacity .3s}
-        .progress-bar{
-            height:6px;
-            background:linear-gradient(90deg, #10b981, #34d399);
-            transition:width .4s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius:3px;
-            box-shadow: 0 0 8px rgb(16 185 129 / 0.4);
-            position:relative;
-        }
-        .progress-bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            animation: shimmer 2s infinite;
-        }
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-        .canvas-frame {
-            padding: 12px;
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            border-radius: 12px;
-            border: 1px solid rgb(0 0 0 / 0.08);
-            box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
-        }
-        .canvas-frame canvas {
-            border-radius: 4px;
-            box-shadow: 0 10px 15px -3px rgb(0 0 0/.1), 0 4px 6px -2px rgb(0 0 0/.05);
-        }
-
-        /* Crop stage: the page canvas fills it exactly, so percentages in it
-           are page fractions. The canvas must not have a border or padding. */
-        #selectionBox{
-            position:absolute;box-sizing:border-box;cursor:move;touch-action:none;
-            outline:2px dashed #10b981;  /* outline: does not cover the crop area */
-        }
-        #selectionBox .handle{
-            position:absolute;width:14px;height:14px;background:#10b981;
-            border: 1px solid white;border-radius:2px;
-            z-index:10;
-        }
-        .nw{top:-7px;left:-7px;cursor:nwse-resize}
-        .n {top:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-        .ne{top:-7px;right:-7px;cursor:nesw-resize}
-        .w {left:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
-        .e {right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
-        .sw{bottom:-7px;left:-7px;cursor:nesw-resize}
-        .s {bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-        .se{bottom:-7px;right:-7px;cursor:nwse-resize}
-
-        .overlay-part{position:absolute;background:rgba(0,0,0,.45);pointer-events:none}
-    </style>
-</head>
-
-<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+  <body class="bg-linear-to-br from-gray-50 to-gray-100 min-h-screen">
     <div class="max-w-4xl mx-auto px-4 py-8">
-        <!---------------HEADER ------------>
-        <header class="text-center mb-12">
-            <h1 class="text-4xl md:text-5xl font-bold text-dark mb-3">Cropr</h1>
-            <p class="text-gray-600 max-w-2xl mx-auto text-lg">
-                Crop PDF shipping labels instantly. Auto-crop the top half or select manually,
-                then download or print as US-Letter PNG.
-            </p>
-        </header>
+      <header class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold text-dark mb-3">Cropr</h1>
+        <p class="text-gray-600 max-w-2xl mx-auto text-lg">
+          Crop PDF shipping labels instantly. Auto-crop the top half or select manually, then
+          download or print as US-Letter PNG.
+        </p>
+      </header>
 
-        <!--------------- MAIN CARD ------------------------------->
-        <main class="bg-gradient-to-b from-white to-gray-50/30 rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden" style="box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.05);">
-            <!-- Upload section (identical to original) -->
-            <div class="p-6 border-b">
-                <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer mb-6">
-                    <div class="flex flex-col items-center justify-center">
-                        <!-- icon / title / etc. untouched -->
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-primary mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M12 16v-4m0 0V8m0 4H8m4 0h4m2 6H6a2 2 0 01-2-2V6a2
-                                     2 0 012-2h7l5 5v9a2 2 0 01-2 2z"/>
-                        </svg>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Upload PDF Label</h3>
-                        <p class="text-gray-600 mb-4">Drag&nbsp;&amp;&nbsp;drop your file here or click to browse</p>
+      <main
+        class="main-card bg-linear-to-b from-white to-gray-50/30 rounded-2xl border border-gray-200/50 overflow-hidden"
+      >
+        <!-- Upload -->
+        <section class="p-6 border-b" aria-labelledby="uploadHeading">
+          <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer mb-6">
+            <div class="flex flex-col items-center justify-center">
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-12 w-12 text-primary mb-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 16v-4m0 0V8m0 4H8m4 0h4m2 6H6a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v9a2 2 0 01-2 2z"
+                />
+              </svg>
+              <h2 id="uploadHeading" class="text-xl font-semibold text-gray-800 mb-2">
+                Upload PDF Label
+              </h2>
+              <p class="text-gray-600 mb-4">
+                Drag&nbsp;&amp;&nbsp;drop your file here or click to browse
+              </p>
 
-                        <input id="fileInput" type="file" class="hidden" accept=".pdf">
-                        <button id="browseBtn" class="bg-primary text-white font-medium py-2 px-6 rounded-lg btn-hover">Select File</button>
+              <input
+                id="fileInput"
+                type="file"
+                class="hidden"
+                accept=".pdf,application/pdf"
+                aria-labelledby="browseBtn"
+              />
+              <button
+                id="browseBtn"
+                type="button"
+                class="bg-primary text-white font-medium py-2 px-6 rounded-lg btn-hover"
+              >
+                Select File
+              </button>
 
-                        <p class="text-gray-500 text-sm mt-4">All processing is done locally in your browser. Your file never leaves your computer.</p>
-                        <p class="text-gray-500 text-sm mt-1">PDF files only</p>
-                    </div>
-                </div>
-
-                <p id="errorMsg" role="alert" class="hidden mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm"></p>
-
-                <!-------- Progress Bar ------------------------------------------>
-                <div id="progressContainer" class="progress-container mb-4 hidden">
-                    <div class="flex justify-between mb-1">
-                        <span class="text-sm font-medium text-gray-700">Processing…</span>
-                        <span id="progressPercent" class="text-sm font-medium text-gray-700">0 %</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2 shadow-inner">
-                        <div id="progressBar" class="progress-bar rounded-full"></div>
-                    </div>
-                </div>
+              <p class="text-gray-500 text-sm mt-4">
+                All processing is done locally in your browser. Your file never leaves your
+                computer.
+              </p>
+              <p class="text-gray-500 text-sm mt-1">PDF files only</p>
             </div>
+          </div>
 
-            <!------------- Preview section ------------------------------------>
-            <div class="p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Preview</h2>
+          <p
+            id="errorMsg"
+            role="alert"
+            class="hidden mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm"
+          ></p>
 
-                <!-- page navigation -->
-                <div id="pageControls" class="flex justify-center items-center gap-3 mb-4 hidden">
-                    <button id="prevPageBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded disabled:opacity-50 btn-hover" disabled>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                        </svg>
-                    </button>
-                    <span id="pageInfo" class="text-gray-600 font-medium px-3">Page 1 of 1</span>
-                    <button id="nextPageBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded disabled:opacity-50 btn-hover" disabled>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- centred buttons -->
-                <div id="cropModeControls" class="flex justify-center items-center gap-3 mb-4">
-                    <button id="autoCropBtn"   aria-pressed="true"  class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg btn-hover">Auto Crop</button>
-                    <button id="manualCropBtn" aria-pressed="false" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg btn-hover">Manual Crop</button>
-                    <button id="confirmCropBtn" class="bg-accent hover:bg-orange-600 text-white px-4 py-2 rounded-lg btn-hover disabled:opacity-50" disabled>Confirm Selection</button>
-                </div>
-                <div class="flex justify-center mb-4">
-                    <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                        <input id="bwToggle" type="checkbox" class="h-4 w-4 accent-emerald-500" checked>
-                        Pure black &amp; white (recommended: prevents gray streaks on printed labels)
-                    </label>
-                </div>
-
-                <!-- canvases -->
-                <div id="previewContainer" class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden">
-                    <!-- page with crop selection -->
-                    <div class="canvas-frame mb-6 w-full max-w-[800px]">
-                        <div id="cropStage" class="relative select-none">
-                            <canvas id="originalCanvas" class="block w-full h-auto"></canvas>
-
-                            <!-- dark overlay outside the selection -->
-                            <div id="ovTop"    class="overlay-part" hidden></div>
-                            <div id="ovLeft"   class="overlay-part" hidden></div>
-                            <div id="ovRight"  class="overlay-part" hidden></div>
-                            <div id="ovBottom" class="overlay-part" hidden></div>
-
-                            <!-- selection rectangle -->
-                            <div id="selectionBox" hidden>
-                                <div class="handle nw" data-handle="nw"></div><div class="handle n" data-handle="n"></div><div class="handle ne" data-handle="ne"></div>
-                                <div class="handle w" data-handle="w"></div><div class="handle e" data-handle="e"></div>
-                                <div class="handle sw" data-handle="sw"></div><div class="handle s" data-handle="s"></div><div class="handle se" data-handle="se"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- label as it will print -->
-                    <div class="canvas-frame mb-6">
-                        <canvas id="croppedCanvas" class="block max-w-full h-auto border-2 border-dashed border-red-500"></canvas>
-                    </div>
-
-                    <!-- action buttons -->
-                    <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-                        <!-- Download -->
-                        <button id="downloadBtn"
-                                class="flex-1 bg-primary hover:bg-emerald-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
-                                disabled>
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                 class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 
-                                         10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 
-                                         3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
-                            Download PNG
-                        </button>
-
-                        <!-- Print -->
-                        <button id="printBtn"
-                                class="flex-1 bg-accent hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
-                                disabled>
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                 class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                      d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 
-                                         2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 
-                                         2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd" />
-                            </svg>
-                            Print
-                        </button>
-
-                        <!-- Reset -->
-                        <button id="resetBtn"
-                                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                 class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                      d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 
-                                         1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 
-                                         01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 
-                                         0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 
-                                         7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-                            </svg>
-                            Reset
-                        </button>
-                    </div>
-
-
-                </div>
-                <div id="emptyPreview" class="text-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="h-16 w-16 mx-auto text-gray-300 mb-4"
-                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p class="text-gray-500">Upload a PDF to see the preview</p>
-                </div>
-
+          <div id="progressContainer" class="mb-4 hidden">
+            <div class="flex justify-between mb-1">
+              <span id="progressLabel" class="text-sm font-medium text-gray-700">Processing…</span>
+              <span
+                id="progressPercent"
+                class="text-sm font-medium text-gray-700"
+                aria-hidden="true"
+                >0 %</span
+              >
             </div>
-        </main>
-
-        <!------------ How It Works Box --------------------->
-        <section class="mt-10 bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-            <h2 class="text-center text-2xl font-semibold mb-8 text-dark">How Cropr Works</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-                <div>
-                    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-lg">1</div>
-                    <h3 class="font-semibold mb-2 text-dark">Upload PDF</h3>
-                    <p class="text-sm text-gray-600">Upload your shipping label PDF file</p>
-                </div>
-                <div>
-                    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-lg">2</div>
-                    <h3 class="font-semibold mb-2 text-dark">Crop Label</h3>
-                    <p class="text-sm text-gray-600">Auto-crop the top half or manually select the area you need</p>
-                </div>
-                <div>
-                    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-lg">3</div>
-                    <h3 class="font-semibold mb-2 text-dark">Download & Print</h3>
-                    <p class="text-sm text-gray-600">Get your cropped label as PNG or print directly</p>
-                </div>
+            <div
+              id="progressTrack"
+              class="w-full bg-gray-200 rounded-full h-2 shadow-inner"
+              role="progressbar"
+              aria-labelledby="progressLabel"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <div id="progressBar" class="progress-bar rounded-full"></div>
             </div>
+          </div>
         </section>
-        <!----------- Footer ---------------------------------->
-        <footer class="mt-10 flex items-center justify-center gap-3 text-gray-400 text-sm">
-            <span>© 2025 Cropr. All rights reserved.</span>
 
-            <!-- GitHub link -->
-            <a href="https://github.com/tatujan/Cropr"
-               target="_blank" rel="noopener"
-               class="text-gray-400 hover:text-gray-600 transition">
-                <!-- GitHub “mark” icon -->
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     viewBox="0 0 24 24" fill="currentColor"
-                     class="w-5 h-5">
-                    <path fill-rule="evenodd" clip-rule="evenodd"
-                          d="M12 .5C5.658.5.5 5.657.5 12a11.5 11.5 0 008 10.94c.6.11.82-.26.82-.58
-                             0-.29-.01-1.06-.02-2.08-3.26.71-3.95-1.57-3.95-1.57-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.74.08-.74
-                             1.22.09 1.87 1.25 1.87 1.25 1.08 1.85 2.83 1.32 3.53 1.01.11-.78.42-1.32.76-1.62-2.6-.3-5.33-1.31-5.33-5.85
-                             0-1.29.46-2.35 1.22-3.18-.12-.3-.53-1.52.12-3.17 0 0 .99-.32 3.25 1.21a11.3 11.3 0 015.92 0c2.26-1.53
-                             3.25-1.21 3.25-1.21.66 1.65.24 2.87.12 3.17.76.83 1.22 1.89 1.22 3.18 0 4.55-2.74 5.54-5.35
-                             5.83.43.37.81 1.1.81 2.22 0 1.6-.02 2.89-.02 3.28 0 .32.22.7.83.58A11.5 11.5 0 0023.5 12C23.5
-                             5.657 18.343.5 12 .5z"/>
+        <!-- Preview -->
+        <section class="p-6" aria-labelledby="previewHeading">
+          <h2 id="previewHeading" class="text-xl font-semibold text-gray-800 mb-4">Preview</h2>
+
+          <div id="pageControls" class="flex justify-center items-center gap-3 mb-4 hidden">
+            <button
+              id="prevPageBtn"
+              type="button"
+              aria-label="Previous page"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded-sm disabled:opacity-50 btn-hover"
+              disabled
+            >
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <span id="pageInfo" class="text-gray-600 font-medium px-3" aria-live="polite"
+              >Page 1 of 1</span
+            >
+            <button
+              id="nextPageBtn"
+              type="button"
+              aria-label="Next page"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded-sm disabled:opacity-50 btn-hover"
+              disabled
+            >
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div class="flex flex-wrap justify-center items-center gap-3 mb-4">
+            <button
+              id="autoCropBtn"
+              type="button"
+              aria-pressed="true"
+              class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-lg btn-hover"
+            >
+              Auto Crop
+            </button>
+            <button
+              id="manualCropBtn"
+              type="button"
+              aria-pressed="false"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg btn-hover"
+            >
+              Manual Crop
+            </button>
+            <button
+              id="confirmCropBtn"
+              type="button"
+              class="bg-accent hover:bg-orange-600 text-white px-4 py-2 rounded-lg btn-hover disabled:opacity-50"
+              disabled
+            >
+              Confirm Selection
+            </button>
+          </div>
+          <div class="flex justify-center mb-4">
+            <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input id="bwToggle" type="checkbox" class="h-4 w-4 accent-emerald-500" checked />
+              Pure black &amp; white (recommended: prevents gray streaks on printed labels)
+            </label>
+          </div>
+
+          <div
+            id="previewContainer"
+            class="preview-container bg-gray-100 rounded-lg p-4 flex flex-col items-center justify-center min-h-[300px] hidden"
+          >
+            <p id="selectionHelp" class="text-sm text-gray-600 mb-3 text-center" hidden>
+              Drag the box or its handles. With the keyboard: arrow keys move the box, Shift + arrow
+              keys change its size, Enter confirms.
+            </p>
+
+            <!-- page with crop selection -->
+            <div class="canvas-frame mb-6 w-full max-w-[800px]">
+              <div id="cropStage" class="relative select-none">
+                <canvas
+                  id="originalCanvas"
+                  class="block w-full h-auto"
+                  role="img"
+                  aria-label="PDF page"
+                ></canvas>
+
+                <!-- dark overlay outside the selection -->
+                <div id="ovTop" class="overlay-part" hidden></div>
+                <div id="ovLeft" class="overlay-part" hidden></div>
+                <div id="ovRight" class="overlay-part" hidden></div>
+                <div id="ovBottom" class="overlay-part" hidden></div>
+
+                <!-- selection rectangle -->
+                <div
+                  id="selectionBox"
+                  tabindex="0"
+                  role="group"
+                  aria-roledescription="crop selection"
+                  aria-label="Crop selection"
+                  aria-describedby="selectionHelp"
+                  hidden
+                >
+                  <div class="handle nw" data-handle="nw" aria-hidden="true"></div>
+                  <div class="handle n" data-handle="n" aria-hidden="true"></div>
+                  <div class="handle ne" data-handle="ne" aria-hidden="true"></div>
+                  <div class="handle w" data-handle="w" aria-hidden="true"></div>
+                  <div class="handle e" data-handle="e" aria-hidden="true"></div>
+                  <div class="handle sw" data-handle="sw" aria-hidden="true"></div>
+                  <div class="handle s" data-handle="s" aria-hidden="true"></div>
+                  <div class="handle se" data-handle="se" aria-hidden="true"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- label as it will print -->
+            <div class="canvas-frame mb-6">
+              <canvas
+                id="croppedCanvas"
+                class="block max-w-full h-auto border-2 border-dashed border-red-500"
+                role="img"
+                aria-label="Cropped label, as it will print"
+              ></canvas>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+              <button
+                id="downloadBtn"
+                type="button"
+                class="flex-1 bg-primary hover:bg-emerald-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                disabled
+              >
+                <svg
+                  aria-hidden="true"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 mr-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                    clip-rule="evenodd"
+                  />
                 </svg>
-            </a>
-        </footer>
+                Download PNG
+              </button>
 
+              <button
+                id="printBtn"
+                type="button"
+                class="flex-1 bg-accent hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap disabled:opacity-50"
+                disabled
+              >
+                <svg
+                  aria-hidden="true"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 mr-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Print
+              </button>
+
+              <button
+                id="resetBtn"
+                type="button"
+                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg btn-hover flex items-center justify-center whitespace-nowrap"
+              >
+                <svg
+                  aria-hidden="true"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 mr-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Reset
+              </button>
+            </div>
+          </div>
+          <div id="emptyPreview" class="text-center py-12">
+            <svg
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-16 w-16 mx-auto text-gray-300 mb-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <p class="text-gray-500">Upload a PDF to see the preview</p>
+          </div>
+        </section>
+      </main>
+
+      <section
+        class="mt-10 bg-white rounded-2xl shadow-lg border border-gray-200 p-8"
+        aria-labelledby="howHeading"
+      >
+        <h2 id="howHeading" class="text-center text-2xl font-semibold mb-8 text-dark">
+          How Cropr Works
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+          <div>
+            <div
+              class="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-lg"
+            >
+              1
+            </div>
+            <h3 class="font-semibold mb-2 text-dark">Upload PDF</h3>
+            <p class="text-sm text-gray-600">Upload your shipping label PDF file</p>
+          </div>
+          <div>
+            <div
+              class="w-12 h-12 mx-auto mb-3 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-lg"
+            >
+              2
+            </div>
+            <h3 class="font-semibold mb-2 text-dark">Crop Label</h3>
+            <p class="text-sm text-gray-600">
+              Auto-crop the top half or manually select the area you need
+            </p>
+          </div>
+          <div>
+            <div
+              class="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-lg"
+            >
+              3
+            </div>
+            <h3 class="font-semibold mb-2 text-dark">Download &amp; Print</h3>
+            <p class="text-sm text-gray-600">Get your cropped label as PNG or print directly</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="mt-10 flex items-center justify-center gap-3 text-gray-400 text-sm">
+        <span>© 2025 Cropr. All rights reserved.</span>
+        <a
+          href="https://github.com/tatujan/Cropr"
+          target="_blank"
+          rel="noopener"
+          aria-label="Cropr on GitHub"
+          class="text-gray-400 hover:text-gray-600 transition"
+        >
+          <svg
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="w-5 h-5"
+          >
+            <path
+              fill-rule="evenodd"
+              clip-rule="evenodd"
+              d="M12 .5C5.658.5.5 5.657.5 12a11.5 11.5 0 008 10.94c.6.11.82-.26.82-.58 0-.29-.01-1.06-.02-2.08-3.26.71-3.95-1.57-3.95-1.57-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.74.08-.74 1.22.09 1.87 1.25 1.87 1.25 1.08 1.85 2.83 1.32 3.53 1.01.11-.78.42-1.32.76-1.62-2.6-.3-5.33-1.31-5.33-5.85 0-1.29.46-2.35 1.22-3.18-.12-.3-.53-1.52.12-3.17 0 0 .99-.32 3.25 1.21a11.3 11.3 0 015.92 0c2.26-1.53 3.25-1.21 3.25-1.21.66 1.65.24 2.87.12 3.17.76.83 1.22 1.89 1.22 3.18 0 4.55-2.74 5.54-5.35 5.83.43.37.81 1.1.81 2.22 0 1.6-.02 2.89-.02 3.28 0 .32.22.7.83.58A11.5 11.5 0 0023.5 12C23.5 5.657 18.343.5 12 .5z"
+            />
+          </svg>
+        </a>
+      </footer>
     </div>
-
-
-</body>
+  </body>
 </html>

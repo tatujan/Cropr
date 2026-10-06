@@ -1,0 +1,203 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-primary: #10b981; /* emerald-500 */
+  --color-secondary: #475569; /* slate-600 */
+  --color-accent: #f97316; /* orange-500 */
+  --color-dark: #1e293b; /* slate-800 */
+}
+
+@layer base {
+  /* Tailwind 3 defaults that the markup expects */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* Buttons */
+.btn-hover {
+  transform: translateY(0);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-hover:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -2px rgb(0 0 0 / 0.05);
+}
+.btn-hover:active:not(:disabled) {
+  transform: translateY(0);
+  transition: all 0.1s;
+}
+.btn-hover:disabled {
+  cursor: not-allowed;
+}
+
+.main-card {
+  box-shadow:
+    0 25px 50px -12px rgb(0 0 0 / 0.25),
+    0 0 0 1px rgb(0 0 0 / 0.05);
+}
+
+/* File upload zone */
+.drop-zone {
+  border: 2px dashed #cbd5e1;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+}
+.drop-zone.active {
+  border-color: #10b981;
+  background: #f0fdf4;
+  transform: scale(1.02);
+}
+.drop-zone:hover {
+  border-color: #10b981;
+  background: #f9fafb;
+  transform: scale(1.01);
+}
+
+/* Progress bar */
+.preview-container {
+  transition: opacity 0.3s;
+}
+.progress-bar {
+  height: 6px;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgb(16 185 129 / 0.4);
+  position: relative;
+}
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar::after {
+    animation: none;
+  }
+  .btn-hover,
+  .drop-zone {
+    transition: none;
+  }
+}
+
+/* Canvas frames */
+.canvas-frame {
+  padding: 12px;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border-radius: 12px;
+  border: 1px solid rgb(0 0 0 / 0.08);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+}
+.canvas-frame canvas {
+  border-radius: 4px;
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -2px rgb(0 0 0 / 0.05);
+}
+
+/* Crop stage: the page canvas fills it exactly, so percentages in it are page
+   fractions. The canvas must not have a border or padding. */
+#selectionBox {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: move;
+  touch-action: none;
+  outline: 2px dashed #10b981; /* outline: does not cover the crop area */
+}
+#selectionBox:focus-visible {
+  outline: 3px solid #10b981;
+}
+#selectionBox .handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #10b981;
+  border: 1px solid white;
+  border-radius: 2px;
+  z-index: 10;
+}
+.nw {
+  top: -7px;
+  left: -7px;
+  cursor: nwse-resize;
+}
+.n {
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+.ne {
+  top: -7px;
+  right: -7px;
+  cursor: nesw-resize;
+}
+.w {
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+.e {
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+.sw {
+  bottom: -7px;
+  left: -7px;
+  cursor: nesw-resize;
+}
+.s {
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+.se {
+  bottom: -7px;
+  right: -7px;
+  cursor: nwse-resize;
+}
+
+.overlay-part {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+/* Hidden frame that prints the label (see print() in main.js) */
+.print-frame {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border: 0;
+}

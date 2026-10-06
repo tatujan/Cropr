@@ -1,12 +1,44 @@
 {
   "name": "cropr",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Crop PDF shipping labels and print them from the browser",
+  "license": "MIT",
   "type": "module",
-  "scripts": {
-    "start": "python3 -m http.server 8000",
-    "test": "node --test"
+  "engines": {
+    "node": ">=22"
   },
-  "license": "MIT"
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predev": "node scripts/copy-pdfjs-assets.js",
+    "prebuild": "node scripts/copy-pdfjs-assets.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.4.299"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.19.1",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.3"
+  }
 }

@@ -1,7 +1,8 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { BW_THRESHOLD, maskToRgba, placeMask, toMask } from '../src/image.js';
+import { BW_THRESHOLD, maskToRgba, placeMask, toMask } from '../../src/image.js';
 
+/** @param {...number} grays */
 const rgba = (...grays) => Uint8ClampedArray.from(grays.flatMap((g) => [g, g, g, 255]));
 
 test('light gray haze and read-back noise become white', () => {
@@ -18,9 +19,5 @@ test('maskToRgba gives opaque pure black and white', () => {
 
 test('placeMask copies the label into a white page', () => {
   const page = placeMask(Uint8Array.of(1, 1, 1, 0), 2, 2, 4, 3, 1, 1);
-  assert.deepEqual([...page], [
-    0, 0, 0, 0,
-    0, 1, 1, 0,
-    0, 1, 0, 0,
-  ]);
+  assert.deepEqual([...page], [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0]);
 });

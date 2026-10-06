@@ -17,12 +17,14 @@ const CRC_TABLE = (() => {
   return table;
 })();
 
+/** @param {Uint8Array} bytes @returns {number} */
 export function crc32(bytes) {
   let c = 0xffffffff;
   for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 
+/** @param {string} type @param {Uint8Array} data */
 function chunk(type, data) {
   const out = new Uint8Array(12 + data.length);
   const view = new DataView(out.buffer);
@@ -33,7 +35,10 @@ function chunk(type, data) {
   return out;
 }
 
-/** zlib-format deflate with the built-in CompressionStream (browsers and Node 18+). */
+/**
+ * zlib-format deflate with the built-in CompressionStream (browsers and Node 18+).
+ * @param {Uint8Array<ArrayBuffer>} bytes
+ */
 async function zlibDeflate(bytes) {
   const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
@@ -41,7 +46,8 @@ async function zlibDeflate(bytes) {
 
 /**
  * @param {Uint8Array} mask  width × height values, 1 = black, 0 = white
- * @returns {Promise<Uint8Array>} PNG file bytes
+ * @param {number} width @param {number} height
+ * @returns {Promise<Uint8Array<ArrayBuffer>>} PNG file bytes
  */
 export async function encodeBilevelPng(mask, width, height, { dpi = 300 } = {}) {
   const rowBytes = Math.ceil(width / 8);
@@ -60,8 +66,8 @@ export async function encodeBilevelPng(mask, width, height, { dpi = 300 } = {}) 
   const ih = new DataView(ihdr.buffer);
   ih.setUint32(0, width);
   ih.setUint32(4, height);
-  ihdr[8] = 1;  // bit depth
-  ihdr[9] = 0;  // color type: grayscale
+  ihdr[8] = 1; // bit depth
+  ihdr[9] = 0; // color type: grayscale
   // compression, filter and interlace methods stay 0
 
   const phys = new Uint8Array(9);
@@ -80,6 +86,9 @@ export async function encodeBilevelPng(mask, width, height, { dpi = 300 } = {}) 
   ];
   const png = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let offset = 0;
-  for (const p of parts) { png.set(p, offset); offset += p.length; }
+  for (const p of parts) {
+    png.set(p, offset);
+    offset += p.length;
+  }
   return png;
 }

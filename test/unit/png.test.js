@@ -1,8 +1,9 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { crc32, encodeBilevelPng } from '../src/png.js';
+import { crc32, encodeBilevelPng } from '../../src/png.js';
 
+/** @param {Uint8Array} png */
 function readChunks(png) {
   const buf = Buffer.from(png);
   assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -11,7 +12,11 @@ function readChunks(png) {
     const len = buf.readUInt32BE(o);
     const type = buf.toString('latin1', o + 4, o + 8);
     const data = buf.subarray(o + 8, o + 8 + len);
-    assert.equal(buf.readUInt32BE(o + 8 + len), zlib.crc32(buf.subarray(o + 4, o + 8 + len)), `${type} CRC`);
+    assert.equal(
+      buf.readUInt32BE(o + 8 + len),
+      zlib.crc32(buf.subarray(o + 4, o + 8 + len)),
+      `${type} CRC`,
+    );
     chunks.push({ type, data });
     o += 12 + len;
   }
@@ -23,12 +28,18 @@ test('crc32 gives the standard value', () => {
 });
 
 test('encodeBilevelPng writes a valid 1-bit grayscale PNG with the same pixels', async () => {
-  const width = 11, height = 3; // width is not a multiple of 8, to test the padding bits
+  const width = 11,
+    height = 3; // width is not a multiple of 8, to test the padding bits
   const mask = new Uint8Array(width * height);
-  mask[0] = 1; mask[width + 5] = 1; mask[3 * width - 1] = 1;
+  mask[0] = 1;
+  mask[width + 5] = 1;
+  mask[3 * width - 1] = 1;
 
   const chunks = readChunks(await encodeBilevelPng(mask, width, height));
-  assert.deepEqual(chunks.map((c) => c.type), ['IHDR', 'pHYs', 'IDAT', 'IEND']);
+  assert.deepEqual(
+    chunks.map((c) => c.type),
+    ['IHDR', 'pHYs', 'IDAT', 'IEND'],
+  );
 
   const ihdr = chunks[0].data;
   assert.equal(ihdr.readUInt32BE(0), width);

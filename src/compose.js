@@ -6,7 +6,7 @@ import { encodeBilevelPng } from './png.js';
 
 /**
  * @param {HTMLCanvasElement} source  page bitmap at 300 DPI
- * @param {{sx:number, sy:number, sw:number, sh:number}} rect  crop area in source pixels
+ * @param {import('./geometry.js').PixelRect} rect  crop area in source pixels
  * @param {{margin?:number, blackAndWhite?:boolean}} options
  * @returns {Promise<{blob: Blob, preview: HTMLCanvasElement}>}
  *   blob: the Letter page as PNG. preview: only the label part, as it prints.
@@ -18,7 +18,7 @@ export async function makeLabelPng(source, rect, { margin = 0, blackAndWhite = t
   const label = document.createElement('canvas');
   label.width = p.dw;
   label.height = p.dh;
-  const ctx = label.getContext('2d', { willReadFrequently: true });
+  const ctx = context2d(label, { willReadFrequently: true });
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, p.dw, p.dh);
   ctx.imageSmoothingQuality = 'high';
@@ -48,15 +48,30 @@ export async function makeLabelPng(source, rect, { margin = 0, blackAndWhite = t
   return { blob: new Blob([png], { type: 'image/png' }), preview: label };
 }
 
-/** Letter PNG through canvas.toBlob. Browsers with fingerprinting protection can add noise. */
+/**
+ * Letter PNG through canvas.toBlob. Browsers with fingerprinting protection can add noise.
+ * @param {HTMLCanvasElement} label @param {{dx: number, dy: number}} p
+ * @returns {Promise<Blob>}
+ */
 function grayscaleLetterPng(label, p) {
   const page = document.createElement('canvas');
   page.width = LETTER.width;
   page.height = LETTER.height;
-  const ctx = page.getContext('2d');
+  const ctx = context2d(page);
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, page.width, page.height);
   ctx.drawImage(label, p.dx, p.dy);
   return new Promise((resolve, reject) =>
-    page.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png'));
+    page.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png'),
+  );
+}
+
+/**
+ * @param {HTMLCanvasElement} canvas
+ * @param {CanvasRenderingContext2DSettings} [settings]
+ */
+function context2d(canvas, settings) {
+  const ctx = canvas.getContext('2d', settings);
+  if (!ctx) throw new Error('Canvas 2D is not available');
+  return ctx;
 }

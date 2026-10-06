@@ -1,16 +1,26 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   LETTER,
   MIN_SELECTION,
   fitOnHalfLetter,
   moveSelection,
+  KEY_STEP,
   resizeSelection,
+  selectionFromKey,
   selectionToPixels,
-} from '../src/geometry.js';
+} from '../../src/geometry.js';
 
-const near = (actual, expected) =>
-  Object.keys(expected).forEach((k) => assert.ok(Math.abs(actual[k] - expected[k]) < 1e-9, `${k}: ${actual[k]} != ${expected[k]}`));
+/**
+ * @param {Record<string, number> | null} actual
+ * @param {Record<string, number>} expected
+ */
+const near = (actual, expected) => {
+  assert.ok(actual, 'expected a selection');
+  for (const k of Object.keys(expected)) {
+    assert.ok(Math.abs(actual[k] - expected[k]) < 1e-9, `${k}: ${actual[k]} != ${expected[k]}`);
+  }
+};
 
 test('moveSelection keeps the selection inside the page', () => {
   const start = { x: 0.1, y: 0.1, w: 0.5, h: 0.5 };
@@ -38,16 +48,37 @@ test('resizeSelection keeps a minimum size and stays inside the page', () => {
 });
 
 test('selectionToPixels maps fractions to the bitmap without a shift', () => {
-  assert.deepEqual(selectionToPixels({ x: 0, y: 0, w: 1, h: 0.5 }, 2550, 3300), { sx: 0, sy: 0, sw: 2550, sh: 1650 });
-  assert.deepEqual(selectionToPixels({ x: 0.1, y: 0.2, w: 0.5, h: 0.25 }, 1000, 2000), { sx: 100, sy: 400, sw: 500, sh: 500 });
+  assert.deepEqual(selectionToPixels({ x: 0, y: 0, w: 1, h: 0.5 }, 2550, 3300), {
+    sx: 0,
+    sy: 0,
+    sw: 2550,
+    sh: 1650,
+  });
+  assert.deepEqual(selectionToPixels({ x: 0.1, y: 0.2, w: 0.5, h: 0.25 }, 1000, 2000), {
+    sx: 100,
+    sy: 400,
+    sw: 500,
+    sh: 500,
+  });
 });
 
 test('selectionToPixels always gives at least one pixel inside the bitmap', () => {
-  assert.deepEqual(selectionToPixels({ x: 1, y: 1, w: 0, h: 0 }, 100, 100), { sx: 99, sy: 99, sw: 1, sh: 1 });
+  assert.deepEqual(selectionToPixels({ x: 1, y: 1, w: 0, h: 0 }, 100, 100), {
+    sx: 99,
+    sy: 99,
+    sw: 1,
+    sh: 1,
+  });
 });
 
 test('fitOnHalfLetter puts the top half of a Letter page 1:1', () => {
-  assert.deepEqual(fitOnHalfLetter(LETTER.width, LETTER.height / 2), { rotate: false, dw: 2550, dh: 1650, dx: 0, dy: 0 });
+  assert.deepEqual(fitOnHalfLetter(LETTER.width, LETTER.height / 2), {
+    rotate: false,
+    dw: 2550,
+    dh: 1650,
+    dx: 0,
+    dy: 0,
+  });
 });
 
 test('fitOnHalfLetter turns a portrait label and keeps it in the top half', () => {
@@ -62,4 +93,21 @@ test('fitOnHalfLetter turns a portrait label and keeps it in the top half', () =
 test('fitOnHalfLetter gives integer positions', () => {
   const p = fitOnHalfLetter(777, 333, 60);
   for (const v of [p.dx, p.dy, p.dw, p.dh]) assert.ok(Number.isInteger(v));
+});
+
+test('selectionFromKey moves the selection with arrow keys', () => {
+  const start = { x: 0.2, y: 0.2, w: 0.4, h: 0.4 };
+  near(selectionFromKey(start, 'ArrowRight'), { x: 0.2 + KEY_STEP, y: 0.2, w: 0.4, h: 0.4 });
+  near(selectionFromKey(start, 'ArrowUp'), { x: 0.2, y: 0.2 - KEY_STEP });
+  near(selectionFromKey({ ...start, x: 0 }, 'ArrowLeft'), { x: 0 });
+});
+
+test('selectionFromKey with resize moves the right and bottom edges', () => {
+  const start = { x: 0.2, y: 0.2, w: 0.4, h: 0.4 };
+  near(selectionFromKey(start, 'ArrowRight', { resize: true }), { x: 0.2, w: 0.4 + KEY_STEP });
+  near(selectionFromKey(start, 'ArrowUp', { resize: true }), { y: 0.2, h: 0.4 - KEY_STEP });
+});
+
+test('selectionFromKey ignores keys that are not arrow keys', () => {
+  assert.equal(selectionFromKey({ x: 0, y: 0, w: 1, h: 1 }, 'a'), null);
 });
