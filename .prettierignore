@@ -1,0 +1,6 @@
+dist/
+dev-dist/
+public/pdfjs/
+test-results/
+playwright-report/
+package-lock.json
